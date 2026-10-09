@@ -1,0 +1,4 @@
+fairness_constraints:
+  enabled: true
+  fairness_metric: equalized_odds
+  lambda_fairness: 0.1

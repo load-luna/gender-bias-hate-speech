@@ -1,0 +1,35 @@
+dataset:
+  name: davidson
+  config_name: null
+  text_column: text
+  label_column: label
+  gender_column: gender_label
+  train_split: train
+  validation_split: validation
+  test_split: test
+  source: local
+
+  kaggle:
+    data_path: "eldrich/hate-speech-offensive-tweets-by-davidson-et-al"
+    file_path: "data/labeled_data.csv"
+
+  local:
+    path: "data/raw/davidson_data.csv"
+
+  columns:
+    text: tweet
+    label: class
+
+  label_mapping:
+    mode: multiclass
+    num_labels: 3
+
+    mapping:
+      0: 0
+      1: 1
+      2: 2
+
+    names:
+      0: hate_speech
+      1: offensive
+      2: neither

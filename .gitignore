@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data (keep folder structure via .gitkeep)
+data/raw/*
+data/interim/*
+data/processed/*
+
+# Trained models / checkpoints
+models/*
+
+# Generated results
+results/*
+
+# Logs
+logs/
+*.log
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Hugging Face / ML caches
+.cache/
+huggingface_cache/
+transformers_cache/
+wandb/
+runs/
+
+# Temporary files
+tmp/
+temp/

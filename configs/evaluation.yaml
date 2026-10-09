@@ -1,0 +1,8 @@
+evaluation:
+  batch_size: 32
+  metrics:
+    - accuracy
+    - f1
+    - tpr_gap
+    - equalized_odds
+  counterfactual_testing: true

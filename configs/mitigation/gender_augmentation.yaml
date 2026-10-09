@@ -1,0 +1,4 @@
+gender_augmentation:
+  enabled: true
+  include_original: true
+  group_column: gender_label

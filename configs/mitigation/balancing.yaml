@@ -1,0 +1,4 @@
+balancing:
+  enabled: true
+  strategy: undersampling
+  group_column: gender_label

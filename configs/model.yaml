@@ -1,0 +1,12 @@
+model:
+  name: bert-base-uncased
+  is_fine_tuned: false
+
+lora:
+  enabled: true
+  r: 8
+  alpha: 16
+  dropout: 0.1
+  target_modules:
+    - query
+    - value
