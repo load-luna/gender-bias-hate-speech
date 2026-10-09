@@ -29,9 +29,9 @@ ENV/
 Thumbs.db
 
 # Data (keep folder structure via .gitkeep)
-data/raw/*
-data/interim/*
-data/processed/*
+#data/raw/*
+#data/interim/*
+#data/processed/*
 
 # Trained models / checkpoints
 models/*
