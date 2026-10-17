@@ -3,7 +3,7 @@ training:
   batch_size: 16
   epochs: 3
   weight_decay: 0.01
-  warmup_ratio: 0.0
+  warmup_steps: 0.0
   seed: 42
   metric_for_best_model: "f1_macro"
   greater_is_better: True

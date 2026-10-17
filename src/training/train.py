@@ -29,7 +29,7 @@ def create_training_arguments(
         per_device_eval_batch_size=training_config["batch_size"],
         num_train_epochs=training_config["epochs"],
         weight_decay=training_config["weight_decay"],
-        warmup_ratio=training_config["warmup_ratio"],
+        warmup_steps=training_config["warmup_steps"],
         seed=training_config["seed"],
         data_seed=training_config["seed"],
         eval_strategy="epoch",
