@@ -33,8 +33,6 @@ Thumbs.db
 #data/interim/*
 #data/processed/*
 
-# Trained models / checkpoints
-models/*
 
 # Generated results
 results/*
