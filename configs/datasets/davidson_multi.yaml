@@ -4,10 +4,15 @@ dataset:
   text_column: text
   label_column: label
   gender_column: gender_label
-  train_split: train
-  validation_split: validation
-  test_split: test
   source: local
+
+  split:
+    directory: data/processed/splits/davidson_multi_v1
+    seed: 42
+    preprocessing_version: deep_clean_tweet_v1
+    train_split_size: 0.8
+    validation_split_size: 0.1
+    test_split_size: 0.1
 
   kaggle:
     data_path: "eldrich/hate-speech-offensive-tweets-by-davidson-et-al"

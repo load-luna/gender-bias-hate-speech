@@ -1,0 +1,40 @@
+{
+  "assignments_sha256": "5917350b84e3fc8027465a9987ecc25734fed18334b8f16a5acbbab35102e203",
+  "class_counts": {
+    "test": {
+      "0": 412,
+      "1": 2064
+    },
+    "train": {
+      "0": 3330,
+      "1": 16485
+    },
+    "validation": {
+      "0": 421,
+      "1": 2071
+    }
+  },
+  "conflicting_text_groups": 6,
+  "created_at_utc": "2026-10-17T14:30:54.505206+00:00",
+  "duplicate_policy": "Keep all rows; exact prepared text stays in one split, even with conflicting labels.",
+  "preprocessing_version": "deep_clean_tweet_v1",
+  "row_counts": {
+    "test": 2476,
+    "train": 19815,
+    "validation": 2492
+  },
+  "signature": {
+    "dataset_sha256": "5bb2aebb6ed27771851112b2e380722db42a092dd4edef9ba058e5fed068178a",
+    "fractions": {
+      "test": 0.1,
+      "train": 0.8,
+      "validation": 0.1
+    },
+    "method": "GroupShuffleSplit on exact prepared text; no stratification",
+    "preprocessing_version": "deep_clean_tweet_v1",
+    "schema_version": 1,
+    "seed": 42
+  },
+  "source_path": "data/raw/davidson_data.csv",
+  "source_sha256": "fcb8bc7c68120ae4af04a5b9acd58585513ede11e1548ebf36a5c2040b6f6281"
+}

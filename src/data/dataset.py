@@ -196,7 +196,7 @@ def split_dataset(dataset: Dataset, config: dict) -> DatasetDict:
         raise ValueError("Train, validation, and test sizes must sum to 1.")
 
     # Shuffle the dataset before splitting
-    shuffled_dataset = dataset.shuffle(seed=42)
+    shuffled_dataset = dataset.shuffle(split_config.get("seed", 42))
 
     # Calculate the number of examples for each split
     total_examples = len(shuffled_dataset)

@@ -1,5 +1,7 @@
 import string
 
+import re
+
 #create Gender Term DataFrame
 gender_lexicon = {
     "male": {
@@ -247,9 +249,21 @@ def swap_gender(sentence):
     return ' '.join(swapped_words)
 
 def count_gender_terms(text):
-    text = text.lower()
+
+    label_text = text.lower()
+
+    # URLs entfernen, einschließlich www.example.com
+    label_text = re.sub(r"(?:https?://|www\.)\S+", " ", label_text)
+
+    # @Nutzernamen entfernen (Buchstaben, Zahlen und Unterstriche)
+    label_text = re.sub(r"(?<!\w)@[a-z0-9_]+", " ", label_text)
+
+    # Satzzeichen und Unterstriche durch Leerzeichen ersetzen
+    label_text = re.sub(r"[\W_]+", " ", label_text)
+
+    words = label_text.split()
     counts = {"male": 0, "female": 0}
-    for word in text.split():
+    for word in words:
         if word in gender_lexicon["male"]:
             counts["male"] += 1
         elif word in gender_lexicon["female"]:

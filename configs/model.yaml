@@ -1,12 +1,14 @@
 model:
   name: bert-base-uncased
   is_fine_tuned: false
+  path: "google-bert/bert-base-uncased"
 
 lora:
   enabled: true
   r: 8
   alpha: 16
   dropout: 0.1
-  target_modules:
-    - query
-    - value
+  target_modules: ["query", "value"]
+  bias: "none"
+  task_type: "SEQ_CLS"
+  modules_to_save: ["classifier"]

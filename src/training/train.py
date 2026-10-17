@@ -20,7 +20,7 @@ def create_training_arguments(
     training_config = config["training"]
 
 
-    set_seed(training_config["seed"])
+    
 
     return TrainingArguments(
         output_dir=str(output_dir),
@@ -34,7 +34,10 @@ def create_training_arguments(
         data_seed=training_config["seed"],
         eval_strategy="epoch",
         save_strategy="epoch",
-        load_best_model_at_end=False,
+        load_best_model_at_end=training_config["load_best_model_at_end"],
+        metric_for_best_model=training_config["metric_for_best_model"],
+        greater_is_better=training_config["greater_is_better"],
+        logging_strategy="epoch",
         report_to="none",
     )
 
