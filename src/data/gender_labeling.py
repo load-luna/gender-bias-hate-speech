@@ -65,210 +65,226 @@ gender_lexicon = {
     }
 }
 
-#swap gender in sentence
+
+# Define a mapping for swapping gender-specific words
+swap_dict = {
+    # Male to female swaps
+    'he': 'she',
+    'him': 'her', 
+    'his': 'her', 
+    'himself': 'herself',
+    "dude": "babe",
+    "lad":"lass",
+    #"mister": "miss", 
+    "gentlemanly":"ladylike",
+    "mr": "ms",
+    'man': 'woman', 
+    'men': 'women', 
+    'male': 'female',
+    'males': 'females',
+    'boy': 'girl', 
+    'boys': 'girls',
+    'guy': 'girl', 
+    'guys': 'girls', 
+    'father': 'mother',
+    'fathers': 'mothers', 
+    'dad': 'mom',
+    'dads': 'moms',
+    "daddy": "mommy",
+    "daddies": "mommies",
+    'son': 'daughter',
+    'sons': 'daughters', 
+    'brother': 'sister', 
+    'brothers': 'sisters', 
+    'uncle': 'aunt',
+    'uncles': 'aunts',
+    'grandfather': 'grandmother',
+    'grandfathers': 'grandmothers',  
+    'grandpa': 'grandma', 
+    'grandpas': 'grandmas',
+    'husband': 'wife',
+    'husbands': 'wives',
+    'boyfriend': 'girlfriend', 
+    'boyfriends': 'girlfriends', 
+    'nephew': 'niece', 
+    'stepfather': 'stepmother',
+    'stepfathers': 'stepmothers',
+    'stepdad': 'stepmom', 
+    'stepdads': 'stepmoms', 
+    "stepbrother": "stepsister",
+    "stepbrothers": "stepsisters",
+    'halfbrother': 'halfsister', 
+    'halfbrothers': 'halfsisters', 
+    'gentleman': 'lady',
+    'gentlemen': 'ladies',
+    'king': 'queen', 
+    'kings': 'queens',
+    'prince': 'princess', 
+    'princes': 'princesses', 
+    'sir': 'madam', 
+    'actor': 'actress',
+    'actors': 'actresses',
+    'waiter': 'waitress', 
+    'waiters': 'waitresses', 
+    'host': 'hostess', 
+    'hosts': 'hostesses', 
+    'businessman': 'businesswoman',
+    'businessmen': 'businesswomen',
+    'chairman': 'chairwoman', 
+    'chairmen': 'chairwomen', 
+    'policeman': 'policewoman', 
+    'policemen': 'policewomen', 
+    'fireman': 'firewoman',
+    'firemen': 'firewomen',
+    'salesman': 'saleswoman', 
+    'salesmen': 'saleswomen', 
+    'spokesman': 'spokeswoman', 
+    'spokesmen': 'spokeswomen', 
+    'congressman': 'congresswoman',
+    'congressmen': 'congresswomen',
+    'statesman': 'stateswoman', 
+    'statesmen': 'stateswomen', 
+    'masculine': 'feminine', 
+    'manly': 'womanly',
+    'virile': 'feminine', 
+    'macho': 'feminine', 
+    'boyish': 'girly', 
+    'patriarch': 'matriarch',
+
+
+    # Female to male swaps
+    'she': 'he', 
+    'her': 'him', 
+    'hers': 'his', 
+    'herself': 'himself',
+    "lass": "lad",
+    #"miss": "mister",
+    "diva": "drama king",
+    "ladylike": "gentlemanly",
+    "ms": "mr",
+    "babe": "dude",
+    'woman': 'man', 
+    'women': 'men', 
+    'female': 'male',
+    'females': 'males',
+    'girl': 'boy', 
+    'girls': 'boys',
+    'mother': 'father',
+    'mothers': 'fathers',
+    'mom': 'dad',
+    'moms':'dads',
+    "mommy": "daddy",
+    "mommies": "daddies",
+    'daughter': 'son',
+    'daughters': 'sons',
+    'sister': 'brother', 
+    'sisters': 'brothers',
+    'aunt': 'uncle',
+    'aunts':'uncles',
+    'grandmother':'grandfather',
+    'grandmothers':'grandfathers', 
+    'grandma': 'grandpa', 
+    'grandmas':'grandpas',
+    'wife': 'husband',
+    'wives': 'husbands',
+    'girlfriend':'boyfriend',
+    'girlfriends': 'boyfriends', 
+    'niece': 'nephew',
+    "stepsister": "stepbrother",
+    "stepsisters": "stepbrothers",
+    'stepmother': 'stepfather',
+    'stepmothers':'stepfathers',
+    'stepmom': 'stepdad',
+    'stepmoms': 'stepdads',
+    'halfsister': 'halfbrother',
+    'halfsisters': 'halfbrothers', 
+    'lady': 'gentleman', 
+    'ladies': 'gentlemen', 
+    'queen': 'king',
+    'queens': 'kings', 
+    'princess': 'prince',
+    'princesses': 'princes', 
+    'madam': 'sir', 
+    'maam': 'sir', 
+    'actress': 'actor', 
+    'actresses': 'actors', 
+    'waitress': 'waiter',
+    'waitresses': 'waiters',
+    'hostess': 'host', 
+    'hostesses': 'hosts', 
+    'businesswoman': 'businessman', 
+    'businesswomen': 'businessmen',
+    'chairwoman': 'chairman',
+    'chairwomen': 'chairmen',
+    'policewoman': 'policeman', 
+    'policewomen': 'policemen', 
+    'firewoman': 'fireman',
+    'firewomen': 'firemen',
+    'saleswoman': 'salesman', 
+    'saleswomen': 'salesmen',
+    'spokeswoman': 'spokesman',
+    'spokeswomen': 'spokesmen',
+    'stateswoman': 'statesman', 
+    'stateswomen': 'statesmen', 
+    'congresswoman': 'congressman', 
+    'congresswomen': 'congressmen',
+    'feminine': 'masculine', 
+    'womanly': 'manly',
+    'girly': 'boyish', 
+    'maternal': 'paternal', 
+    'motherly': 'fatherly', 
+    'matriarch': 'patriarch'
+}
+
+def get_word_matches(text):
+    """Return cleaned text and word matches with positions in that text.
+
+    Remove URLs and ASCII @usernames. Underscores and punctuation separate
+    words; digits remain part of words, so 'he2' is not recognized as 'he'.
+    Preserve case and the remaining punctuation/spacing for replacements.
+    """
+    cleaned = re.sub(r"(?:https?://|www\.)\S+", " ", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(?<!\w)@[a-z0-9_]+", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.strip()
+    return cleaned, list(re.finditer(r"[^\W_]+", cleaned))
+
+
+def get_words(text):
+    """Return lowercase words using the shared word recognition rules."""
+    _, matches = get_word_matches(text)
+    return [match.group(0).lower() for match in matches]
+
+
 def swap_gender(sentence):
-    # Define a mapping for swapping gender-specific words
-    swap_dict = {
-        # Male to female swaps
-        'he': 'she',
-        'him': 'her', 
-        'his': 'her', 
-        'himself': 'herself',
-        "dude": "babe",
-        "lad":"lass",
-         #"mister": "miss", 
-          "gentlemanly":"ladylike",
-         "mr": "ms",
-        'man': 'woman', 
-        'men': 'women', 
-        'male': 'female',
-        'males': 'females',
-        'boy': 'girl', 
-        'boys': 'girls',
-        'guy': 'girl', 
-        'guys': 'girls', 
-        'father': 'mother',
-        'fathers': 'mothers', 
-        'dad': 'mom',
-        'dads': 'moms',
-        "daddy": "mommy",
-        "daddies": "mommies",
-        'son': 'daughter',
-        'sons': 'daughters', 
-        'brother': 'sister', 
-        'brothers': 'sisters', 
-        'uncle': 'aunt',
-        'uncles': 'aunts',
-        'grandfather': 'grandmother',
-        'grandfathers': 'grandmothers',  
-        'grandpa': 'grandma', 
-        'grandpas': 'grandmas',
-        'husband': 'wife',
-        'husbands': 'wives',
-        'boyfriend': 'girlfriend', 
-        'boyfriends': 'girlfriends', 
-        'nephew': 'niece', 
-        'stepfather': 'stepmother',
-        'stepfathers': 'stepmothers',
-        'stepdad': 'stepmom', 
-        'stepdads': 'stepmoms', 
-        "stepbrother": "stepsister",
-        "stepbrothers": "stepsisters",
-        'halfbrother': 'halfsister', 
-        'halfbrothers': 'halfsisters', 
-        'gentleman': 'lady',
-        'gentlemen': 'ladies',
-        'king': 'queen', 
-        'kings': 'queens',
-        'prince': 'princess', 
-        'princes': 'princesses', 
-        'sir': 'madam', 
-        'actor': 'actress',
-        'actors': 'actresses',
-        'waiter': 'waitress', 
-        'waiters': 'waitresses', 
-        'host': 'hostess', 
-        'hosts': 'hostesses', 
-        'businessman': 'businesswoman',
-        'businessmen': 'businesswomen',
-        'chairman': 'chairwoman', 
-        'chairmen': 'chairwomen', 
-        'policeman': 'policewoman', 
-        'policemen': 'policewomen', 
-        'fireman': 'firewoman',
-        'firemen': 'firewomen',
-        'salesman': 'saleswoman', 
-        'salesmen': 'saleswomen', 
-        'spokesman': 'spokeswoman', 
-        'spokesmen': 'spokeswomen', 
-        'congressman': 'congresswoman',
-        'congressmen': 'congresswomen',
-        'statesman': 'stateswoman', 
-        'statesmen': 'stateswomen', 
-        'masculine': 'feminine', 
-        'manly': 'womanly',
-        'virile': 'feminine', 
-        'macho': 'feminine', 
-        'boyish': 'girly', 
-        'patriarch': 'matriarch',
+    cleaned, matches = get_word_matches(sentence)
+    parts = []
+    previous_end = 0
+    for match in matches:
+        word = match.group(0)
+        replacement = swap_dict.get(word.lower())
+        if replacement is None:
+            replacement = word
+        elif word.isupper():
+            replacement = replacement.upper()
+        elif word.istitle():
+            replacement = replacement.capitalize()
+        # Copy everything between words, including punctuation and underscores.
+        parts.append(cleaned[previous_end:match.start()])
+        parts.append(replacement)
+        previous_end = match.end()
+    parts.append(cleaned[previous_end:])
+    return "".join(parts)
 
-
-        # Female to male swaps
-        'she': 'he', 
-        'her': 'him', 
-        'hers': 'his', 
-        'herself': 'himself',
-        "lass": "lad",
-        #"miss": "mister",
-        "diva": "drama king",
-        "ladylike": "gentlemanly",
-        "ms": "mr",
-        "babe": "dude",
-        'woman': 'man', 
-        'women': 'men', 
-        'female': 'male',
-        'females': 'males',
-        'girl': 'boy', 
-        'girls': 'boys',
-        'mother': 'father',
-        'mothers': 'fathers',
-        'mom': 'dad',
-        'moms':'dads',
-        "mommy": "daddy",
-        "mommies": "daddies",
-        'daughter': 'son',
-        'daughters': 'sons',
-        'sister': 'brother', 
-        'sisters': 'brothers',
-        'aunt': 'uncle',
-        'aunts':'uncles',
-        'grandmother':'grandfather',
-        'grandmothers':'grandfathers', 
-        'grandma': 'grandpa', 
-        'grandmas':'grandpas',
-        'wife': 'husband',
-        'wives': 'husbands',
-        'girlfriend':'boyfriend',
-        'girlfriends': 'boyfriends', 
-        'niece': 'nephew',
-        "setepsister": "stepbrother",
-        "stepsisters": "stepbrothers",
-        'stepmother': 'stepfather',
-        'stepmothers':'stepfathers',
-        'stepmom': 'stepdad',
-        'stepmoms': 'stepdads',
-        'halfsister': 'halfbrother',
-        'halfsisters': 'halfbrothers', 
-        'lady': 'gentleman', 
-        'ladies': 'gentlemen', 
-        'queen': 'king',
-        'queens': 'kings', 
-        'princess': 'prince',
-        'princesses': 'princes', 
-        'madam': 'sir', 
-        'maam': 'sir', 
-        'actress': 'actor', 
-        'actresses': 'actors', 
-        'waitress': 'waiter',
-        'waitresses': 'waiters',
-        'hostess': 'host', 
-        'hostesses': 'hosts', 
-        'businesswoman': 'businessman', 
-        'businesswomen': 'businessmen',
-        'chairwoman': 'chairman',
-        'chairwomen': 'chairmen',
-        'policewoman': 'policeman', 
-        'policewomen': 'policemen', 
-        'firewoman': 'fireman',
-        'firewomen': 'firemen',
-        'saleswoman': 'salesman', 
-        'saleswomen': 'salesmen',
-        'spokeswoman': 'spokesman',
-        'spokeswomen': 'spokesmen',
-        'stateswoman': 'statesman', 
-        'stateswomen': 'statesmen', 
-        'congresswoman': 'congressman', 
-        'congresswomen': 'congressmen',
-        'feminine': 'masculine', 
-        'womanly': 'manly',
-        'girly': 'boyish', 
-        'maternal': 'paternal', 
-        'motherly': 'fatherly', 
-        'matriarch': 'patriarch'
-    }
-    
-    words = sentence.split()
-    swapped_words = []
-    for word in words:
-        lower_word = word.lower()
-        if lower_word in swap_dict:
-            swapped_word = swap_dict[lower_word]
-            swapped_words.append(swapped_word)
-        else:
-            swapped_words.append(word)
-    return ' '.join(swapped_words)
 
 def count_gender_terms(text):
-
-    label_text = text.lower()
-
-    # URLs entfernen, einschließlich www.example.com
-    label_text = re.sub(r"(?:https?://|www\.)\S+", " ", label_text)
-
-    # @Nutzernamen entfernen (Buchstaben, Zahlen und Unterstriche)
-    label_text = re.sub(r"(?<!\w)@[a-z0-9_]+", " ", label_text)
-
-    # Satzzeichen und Unterstriche durch Leerzeichen ersetzen
-    label_text = re.sub(r"[\W_]+", " ", label_text)
-
-    words = label_text.split()
     counts = {"male": 0, "female": 0}
-    for word in words:
+    for word in get_words(text):
         if word in gender_lexicon["male"]:
             counts["male"] += 1
         elif word in gender_lexicon["female"]:
             counts["female"] += 1
     return counts
+
 
 def label_gender(text):
     counts = count_gender_terms(text)

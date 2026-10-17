@@ -1,0 +1,40 @@
+{
+  "assignments_sha256": "c2f0ba79c86c51e7ff5e4f9922d5b78ee7fc8f39df6c25bc1cd2c9ee2b24ec13",
+  "class_counts": {
+    "test": {
+      "0": 6602,
+      "1": 3219
+    },
+    "train": {
+      "0": 54245,
+      "1": 25713
+    },
+    "validation": {
+      "0": 6652,
+      "1": 3181
+    }
+  },
+  "conflicting_text_groups": 417,
+  "created_at_utc": "2026-10-17T18:23:15.322785+00:00",
+  "duplicate_policy": "Keep all rows; exact prepared text stays in one split, even with conflicting labels.",
+  "preprocessing_version": "deep_clean_tweet_drop_empty_v1",
+  "row_counts": {
+    "test": 9821,
+    "train": 79958,
+    "validation": 9833
+  },
+  "signature": {
+    "dataset_sha256": "b2001cf2c93da255790f3dee4f9655c779e346db090ada7f3288d44082a7b6f2",
+    "fractions": {
+      "test": 0.1,
+      "train": 0.8,
+      "validation": 0.1
+    },
+    "method": "GroupShuffleSplit on exact prepared text; no stratification",
+    "preprocessing_version": "deep_clean_tweet_drop_empty_v1",
+    "schema_version": 1,
+    "seed": 42
+  },
+  "source_path": "data/raw/hatespeech_text_label_vote_RESTRICTED_100K.csv",
+  "source_sha256": "abb8a79da65e53c175f92054d9568fa8755fd8cf5fb402cbfb7466a58b243269"
+}

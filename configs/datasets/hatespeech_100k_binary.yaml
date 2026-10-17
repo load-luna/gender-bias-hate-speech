@@ -1,0 +1,36 @@
+dataset:
+  name: hatespeech_100k
+  config_name: null
+  text_column: text
+  label_column: label
+  gender_column: gender_label
+  source: local
+
+  local:
+    path: data/raw/hatespeech_text_label_vote_RESTRICTED_100K.csv
+    format: restricted_hatespeech
+
+  columns:
+    text: text
+    label: majority_label
+  preserve_columns: [majority_label, majority_votes, source_row]
+
+  label_mapping:
+    mode: binary
+    num_labels: 2
+    mapping:
+      normal: 0
+      spam: 0
+      abusive: 1
+      hateful: 1
+    names:
+      0: neither
+      1: harmful
+
+  split:
+    directory: data/processed/splits/hatespeech_100k_binary_v1
+    seed: 42
+    preprocessing_version: deep_clean_tweet_drop_empty_v1
+    train_split_size: 0.8
+    validation_split_size: 0.1
+    test_split_size: 0.1

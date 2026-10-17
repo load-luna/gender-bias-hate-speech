@@ -3,6 +3,34 @@ from kagglehub import KaggleDatasetAdapter
 from datasets import Dataset, DatasetDict, load_dataset
 import pandas as pd
 import numpy as np
+from pathlib import Path
+
+## Dataset has not the right csv format 
+## converting to the right format
+def load_restricted_hatespeech(path: str) -> Dataset:
+    """Read the whitespace-delimited text/majority-label/votes release.
+
+    Split from the right so commas, quotes and whitespace inside tweets survive.
+    Source row numbers are one-based data rows, not tweet IDs.
+    """
+    rows = []
+    with Path(path).open(encoding="utf-8-sig") as handle:
+        header = next(handle, "")
+        if header.split() != "Tweet text Label Votes for the majority label".split():
+            raise ValueError("Unexpected restricted hate-speech file header.")
+        for source_row, line in enumerate(handle, 1):
+            fields = line.rstrip("\r\n").rsplit(None, 2)
+            if len(fields) != 3:
+                raise ValueError(f"Invalid text/label/votes at data row {source_row}.")
+            text, label, votes = fields
+            if (not text.strip() or label not in {"normal", "spam", "abusive", "hateful"}
+                    or not votes.isascii() or not votes.isdecimal() or int(votes) < 1):
+                raise ValueError(f"Invalid text/label/votes at data row {source_row}.")
+            rows.append({"text": text, "majority_label": label,
+                         "majority_votes": int(votes), "source_row": source_row})
+    if not rows:
+        raise ValueError("Restricted hate-speech file contains no data rows.")
+    return Dataset.from_list(rows)
 
 
 def load_data_from_config(config: dict) -> DatasetDict:
@@ -34,6 +62,11 @@ def load_data_from_config(config: dict) -> DatasetDict:
             raise ValueError(
                 "Missing dataset.local.path in config."
             )
+        file_format = local_config.get("format", "csv")
+        if file_format == "restricted_hatespeech":
+            return load_restricted_hatespeech(path)
+        if file_format != "csv":
+            raise ValueError(f"Unknown local dataset format: {file_format}")
         df = pd.read_csv(path)
 
         return Dataset.from_pandas(
@@ -122,10 +155,17 @@ def prepare_dataset(
     text_column = dataset_config["columns"]["text"]
     label_column = dataset_config["columns"]["label"]
 
+    def label_key(key):
+        try:
+            return int(key)
+        except (ValueError, TypeError):
+            return key
+
     mapping = {
-        int(key): int(value)
+        label_key(key): int(value)
         for key, value in dataset_config["label_mapping"]["mapping"].items()
     }
+    preserve_columns = dataset_config.get("preserve_columns", [])
 
     names = {
         int(key): value
@@ -145,7 +185,7 @@ def prepare_dataset(
                     mapping,
                     names,
                 ),
-                remove_columns=split.column_names,
+                remove_columns=[c for c in split.column_names if c not in preserve_columns],
             )
 
         return DatasetDict(prepared_splits)
@@ -160,7 +200,7 @@ def prepare_dataset(
                 mapping,
                 names,
             ),
-            remove_columns=dataset.column_names,
+            remove_columns=[c for c in dataset.column_names if c not in preserve_columns],
         )
 
     raise TypeError(
@@ -213,4 +253,3 @@ def split_dataset(dataset: Dataset, config: dict) -> DatasetDict:
         "validation": val_dataset,
         "test": test_dataset
     })
-    
