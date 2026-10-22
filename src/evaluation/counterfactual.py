@@ -43,7 +43,7 @@ def evaluate_counterfactual_pairs(swapped, original_predictions, swapped_predict
     changed = np.asarray(swapped["swap_changed"], dtype=bool)
     gender = np.asarray(swapped["original_gender_label"])
     masks = {"all": np.ones(len(labels), dtype=bool), "male": gender == 0,
-             "female": gender == 1, "neutral": np.isin(gender, [2, 3])}
+             "female": gender == 1, "equal": gender == 2, "none": gender == 3}
     summaries = []
     for name, group in masks.items():
         mask = group & changed
@@ -76,7 +76,7 @@ def evaluate_counterfactual_pairs(swapped, original_predictions, swapped_predict
     })
     return {
         "definitions": {
-            "groups": "Original gender group; male=0, female=1, neutral=2 or 3.",
+            "groups": "Original gender group; male=0, female=1, equal=2, none=3.",
             "flip_rate": "Prediction changes among text-changed pairs only.",
             "transitions": "Rows=original predictions, columns=swapped predictions, class_ids order.",
             "label_assumption": "Original gold labels retained; lexical swaps need manual semantic review.",

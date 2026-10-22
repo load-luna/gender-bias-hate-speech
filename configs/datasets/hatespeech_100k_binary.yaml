@@ -28,9 +28,9 @@ dataset:
       1: harmful
 
   split:
-    directory: data/processed/splits/hatespeech_100k_binary_v1
+    directory: data/processed/splits/hatespeech_100k_binary_v2
     seed: 42
-    preprocessing_version: deep_clean_tweet_drop_empty_v1
-    train_split_size: 0.8
+    preprocessing_version: deep_clean_tweet_drop_empty_v2
+    train_split_size: 0.6
     validation_split_size: 0.1
-    test_split_size: 0.1
+    test_split_size: 0.3

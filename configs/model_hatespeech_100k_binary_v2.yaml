@@ -1,0 +1,13 @@
+model:
+  name: baseline_hatespeech_100k_binary_v2
+  is_fine_tuned: true
+  path: models/baseline_hatespeech_100k_binary_v2
+lora:
+  enabled: true
+  r: 8
+  alpha: 16
+  dropout: 0.1
+  target_modules: ["query", "value"]
+  bias: "none"
+  task_type: "SEQ_CLS"
+  modules_to_save: ["classifier"]

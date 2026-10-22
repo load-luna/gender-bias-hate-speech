@@ -240,7 +240,7 @@ def compute_metrics(eval_pred):
 """
 
 
-
+"""
 
 def compute_predict(eval_pred):
     predictions, labels = eval_pred
@@ -252,7 +252,9 @@ def compute_predict(eval_pred):
     pred = np.argmax(predictions, axis=1)
     return pred
 
+"""
 
+from src.evaluation.predict import softmax
 
 
 def compute_metrics(eval_pred):
@@ -275,9 +277,7 @@ def compute_metrics(eval_pred):
     num_classes = logits.shape[1]
     class_ids = np.arange(num_classes)
 
-    # Numerisch stabile Softmax
-    exp_logits = np.exp(logits - logits.max(axis=1, keepdims=True))
-    probabilities = exp_logits / exp_logits.sum(axis=1, keepdims=True)
+    probabilities = softmax(logits)
 
     # Softmax verändert die Reihenfolge der Logits nicht.
     predicted_classes = np.argmax(logits, axis=1)
@@ -325,35 +325,3 @@ def compute_metrics(eval_pred):
     return metrics
 
 
-# with gender labels
-def predict_dataset(dataset, trainer):
-
-
-    gender_labels = np.asarray(dataset["gender_label"])
-
-    # Apply the model once to the entire test set
-    logits, labels, _ = trainer.predict(dataset)
-    predicted_labels = np.asarray(compute_predict((logits, labels)))
-    labels = np.asarray(labels)
-
-    # Select the examples belonging to each group
-    masks = {
-        "all": np.ones(len(dataset), dtype=bool),
-        "male": gender_labels == 0,
-        "female": gender_labels == 1,
-        "neutral": np.isin(gender_labels, [2, 3]),
-    }
-
-    # Store predictions and true labels together
-    results = {
-        group: {
-            "predictions": predicted_labels[mask],
-            "labels": labels[mask],
-        }
-        for group, mask in masks.items()
-    }
-    #print
-    for group, values in results.items():
-        print(f"{group.capitalize()}: {len(values['labels'])} examples")
-
-    return results
