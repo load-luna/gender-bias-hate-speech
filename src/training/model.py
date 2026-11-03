@@ -254,7 +254,7 @@ def compute_predict(eval_pred):
 
 """
 
-from src.evaluation.predict import softmax
+from src.training.predict import softmax
 
 
 def compute_metrics(eval_pred):

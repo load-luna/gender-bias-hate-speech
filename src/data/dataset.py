@@ -129,6 +129,7 @@ def prepare_datasetold(df0: DatasetDict, dataset_name: str) -> DatasetDict:
 
 def prepare_example(
     example: dict,
+    id: str,
     text_column: str,
     label_column: str,
     mapping: dict,
@@ -138,6 +139,7 @@ def prepare_example(
     new_label = mapping[original_label]
 
     return {
+        "id" : id,
         "text": example[text_column],
         "label": new_label,
         "category": names[new_label],
@@ -174,34 +176,36 @@ def prepare_dataset(
 
     # Prepare DatasetDict
     if isinstance(dataset, DatasetDict):
-        prepared_splits = {}
+        prepared_splits = {} 
 
         for split_name, split in dataset.items():
             prepared_splits[split_name] = split.map(
-                lambda example: prepare_example(
+                lambda example,index: prepare_example(
                     example,
+                    f"{split_name}_{index}", ##index starts from zero but splitname is in the id!
                     text_column,
                     label_column,
                     mapping,
                     names,
                 ),
                 remove_columns=[c for c in split.column_names if c not in preserve_columns],
-            )
+                with_indices=True)
 
         return DatasetDict(prepared_splits)
 
     #  Prepare single Dataset
     if isinstance(dataset, Dataset):
         return dataset.map(
-            lambda example: prepare_example(
+            lambda example,index: prepare_example(
                 example,
+                index,
                 text_column,
                 label_column,
                 mapping,
                 names,
             ),
             remove_columns=[c for c in dataset.column_names if c not in preserve_columns],
-        )
+            with_indices=True)
 
     raise TypeError(
         "dataset must be a Hugging Face Dataset or DatasetDict."

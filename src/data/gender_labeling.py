@@ -235,6 +235,15 @@ swap_dict = {
     'motherly': 'fatherly', 
     'matriarch': 'patriarch'
 }
+gender_labels = {
+    0: "male",
+    1: "female",
+    2: "equal",
+    3: "none",
+}
+
+
+
 
 def get_word_matches(text):
     """Return cleaned text and word matches with positions in that text.
@@ -388,17 +397,10 @@ def old_count_label_distribution(dataset):
     return arr
 
 def count_label_distribution(dataset,config):
-    gender_names = {
-        0: "male",
-        1: "female",
-        2: "equal",
-        3: "none",
-    }
 
-    
     label_names = config["dataset"]["label_mapping"]["names"]
     
-    num_gender_labels = len(gender_names)
+    num_gender_labels = len(gender_labels)
     num_class_labels = len(label_names)
 
     counts = [
@@ -414,7 +416,7 @@ def count_label_distribution(dataset,config):
 
     print(" " * 10, list(label_names.values()))
 
-    for gender_id, gender_name in gender_names.items():
+    for gender_id, gender_name in gender_labels.items():
         print(
             f"{gender_name:10}",
             counts[gender_id]
@@ -425,4 +427,9 @@ def count_label_distribution(dataset,config):
 #adds gender label columne to dataset
 def add_gender_label(example):
     example["gender_label"] = label_gender(example["text"])
+    return example
+
+def swap_gender_terms_dataset(example):
+    swapped = swap_gender(example["text"])
+    example["text"] = swapped
     return example
