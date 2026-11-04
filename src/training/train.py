@@ -49,6 +49,7 @@ def create_trainer(
     train_dataset,
     eval_dataset=None,
     compute_metrics: Optional[Callable] = None,
+    compute_loss_func = None,
 ) -> Trainer:
     """Create a standard Hugging Face Trainer."""
     return Trainer(
@@ -58,6 +59,7 @@ def create_trainer(
         eval_dataset=eval_dataset,
         processing_class=tokenizer,
         compute_metrics=compute_metrics,
+        compute_loss_func=compute_loss_func,
     )
 
 
