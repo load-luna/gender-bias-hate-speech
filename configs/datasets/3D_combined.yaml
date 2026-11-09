@@ -11,20 +11,18 @@ dataset:
 
   columns:
     text: text
-    label: majority_label
-  preserve_columns: [majority_label, majority_votes, source_row]
+    label: class
+
 
   label_mapping:
     mode: binary
     num_labels: 2
     mapping:
-      normal: 0
-      spam: 0
-      abusive: 1
+      neither: 0
       hateful: 1
     names:
       0: neither
-      1: harmful
+      1: hateful
 
   split:
     directory: data/processed/splits/3D_combined
