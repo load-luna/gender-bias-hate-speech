@@ -18,8 +18,8 @@ dataset:
     mode: binary
     num_labels: 2
     mapping:
-      neither: 0
-      hateful: 1
+      0: 0
+      1: 1
     names:
       0: neither
       1: hateful
