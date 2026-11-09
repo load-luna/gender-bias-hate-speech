@@ -29,7 +29,6 @@ dataset:
   split:
     directory: data/processed/splits/3D_combined
     seed: 42
-    preprocessing_version: -
     train_split_size: 0.6
     validation_split_size: 0.1
     test_split_size: 0.3
