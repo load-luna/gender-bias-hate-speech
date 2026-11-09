@@ -1,9 +1,9 @@
 training:
-  learning_rate: 2.0e-5
+  learning_rate: 5.0e-5
   batch_size: 16
-  epochs: 5
+  epochs: 8
   weight_decay: 0.01
-  warmup_steps: 0.0
+  warmup_steps: 500
   seed: 42
   metric_for_best_model: "f1_macro"
   greater_is_better: True
