@@ -137,39 +137,47 @@ def count_parameters(model):
 
 
 #needs to be 0!
-def check_max_sequence_length(tokenizer, tokenized_datasets):
+def check_max_sequence_length(tokenizer,tokenized_dataset):
     """Check the maximum sequence length for a given tokenizer."""
     max_length = tokenizer.model_max_length
 
-    count = 0
-    for i in range(len(tokenized_datasets['train'])):
-        t = tokenized_datasets['train'][i]['input_ids']
-    if len(t) > max_length:
-        count += 1
-        #remowing row with more than 512 tokens
 
-        #print("Found a sequence longer than 512 tokens at index:", i, "with length:", len(t))
-        #print(r"{}".format(tokenized_datasets['train'][i]))
-        
-    for i in range(len(tokenized_datasets['test'])):
-        t = tokenized_datasets['test'][i]['input_ids']
-        if len(t) > max_length:
-            count += 1
-    for i in range(len(tokenized_datasets['validation'])):
-        t = tokenized_datasets['validation'][i]['input_ids']
-        if len(t) > max_length:
-            count += 1
+    count = 0
+    for set_name in ['train', 'test', 'validation']:
+        for i in range(len(tokenized_dataset[set_name])):
+            t = tokenized_dataset[set_name][i]['input_ids']
+
+            if len(t) > max_length:
+                print(f"Sample {i} in {set_name} exceeds max length: {len(t)} > {max_length}")
+                count += 1
+
     return count
 
 
 
 
-def tokenize_dataset(dataset, tokenizer):
+def tokenize_dataset(dataset, tokenizer,truncation = False):
     """Tokenize the dataset using the provided tokenizer."""
+
+
+
     def preprocess_function(examples):
-        return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512)
+        return tokenizer(examples["text"], truncation=truncation, padding="max_length", max_length=512)
 
     tokenized_datasets = dataset.map(preprocess_function, batched=True)
+
+    # Remove samples that exceed the maximum sequence length
+
+    def filter_long_sequences(example):
+        if len(example['input_ids']) > 512:
+            #print(f"Length of input_ids: {len(example['input_ids'])}")
+            #print(f"text: {example['text']}")
+            return False
+        return True
+
+    tokenized_datasets = tokenized_datasets.filter(filter_long_sequences)
+
+
     return tokenized_datasets
 
 """def compute_metrics_with3(eval_pred):

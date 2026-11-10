@@ -236,3 +236,113 @@ def eval_prediction(results, class_ids, label_names, gender_labels):
             "female_minus_male": female_minus_male_gap,
         },
     }
+
+def sub_counterfactual(paired_prediction,class_ids,label_names):
+    evaluation = {}
+    num_classes = len(class_ids)
+    num_gender_labels = 4
+
+    n_samples = len(paired_prediction["id"])
+    gender_label_flip = 0;
+    prediction_flip = 0;
+    new_error = 0
+    fix_error = 0
+    stays_error = 0
+
+    pred_matrix = np.zeros(shape=(num_classes, num_classes))
+    
+    gender_matrix = np.zeros(shape=(num_gender_labels, num_gender_labels))
+
+    for p in paired_prediction.itertuples(index=False):
+
+
+        pred_matrix[p.prediction_original,p.prediction_swapped] += 1
+        gender_matrix[p.gender_label_original,p.gender_label_swapped] += 1
+
+        if p.prediction_original != p.prediction_swapped:
+            prediction_flip+= 1
+
+            if p.prediction_original == p.label_original: new_error += 1
+            elif p.prediction_swapped == p.label_original: fix_error += 1
+            else: stays_error+= 1
+
+        if p.gender_label_original != p.gender_label_swapped: gender_label_flip += 1
+
+
+
+    p_rate = _ratio(prediction_flip , n_samples)
+    g_rate = _ratio(gender_label_flip , n_samples)
+
+
+    return {
+        "n_samples" : n_samples,
+        "gender_label_flip" : gender_label_flip,
+        "prediction_flip" : prediction_flip,
+        "gender_label_rate" : g_rate,
+        "prediction_flip_rate" : p_rate,
+        "new_error" : new_error,
+        "fix_error" : fix_error,
+        "stays_error" : stays_error,
+        "prediction_swap_matrix" : {
+            "class_ids": class_ids,
+            "label_names": label_names,
+            "transition_matrix": {
+                "rows": "original_prediction",
+                "columns": "swapped_prediction",
+                "counts": pred_matrix,
+            },
+        },
+        "gender_label_swap_matrix" : {
+            "class_ids": [0, 1, 2, 3],
+            "label_names": ["male", "female", "equal", "none"],
+            "transition_matrix": {
+                "rows": "original_gender_label",
+                "columns": "swapped_gender_label",
+                "counts": gender_matrix,
+            },
+        },
+    }
+
+
+
+def eval_counterfactual(paired_prediction,class_ids,label_names):
+
+    evaluation = {}
+    
+
+    mask_male_to_female = (
+        (paired_prediction["gender_label_original"] == 0)
+        & (paired_prediction["gender_label_swapped"] == 1)
+    )
+
+    mask_female_to_male = (
+        (paired_prediction["gender_label_original"] == 1)
+        & (paired_prediction["gender_label_swapped"] == 0)
+    )
+
+    mask_equal_to_equal = (
+        (paired_prediction["gender_label_original"] == 2)
+        & (paired_prediction["gender_label_swapped"] == 2)
+    )
+
+    mask_other = ~(mask_male_to_female|mask_female_to_male|mask_equal_to_equal)
+
+    male_to_female = paired_prediction[mask_male_to_female]
+    female_to_male = paired_prediction[mask_female_to_male]
+    equal_to_equal = paired_prediction[mask_equal_to_equal]
+    other = paired_prediction[mask_other]
+
+
+
+
+    evaluation["all"] = sub_counterfactual(paired_prediction,class_ids,label_names)
+    evaluation["male_to_female"] = sub_counterfactual(male_to_female,class_ids,label_names)
+    evaluation["female_to_male"] = sub_counterfactual(female_to_male,class_ids,label_names)
+    evaluation["equal_to_equal"] = sub_counterfactual(equal_to_equal,class_ids,label_names)
+    evaluation["other"] = sub_counterfactual(other,class_ids,label_names)
+
+
+
+    return evaluation
+
+

@@ -99,7 +99,7 @@ def save_counterfactual_predictions(original, swapped, path, *, label_names=None
 def save_evaluation(evaluation, output_dir, *, label_names=None, metadata=None):    
     """Save one complete JSON, 3 flat CSV tables and a matrix overview."""
 
-    output_dir = Path(output_dir) / "evaluation"
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(evaluation, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
@@ -132,6 +132,13 @@ def save_evaluation(evaluation, output_dir, *, label_names=None, metadata=None):
             for class_name, row in (values["confusion_rates"] or {}).items()
         ]).to_csv(output_dir / "confusion_rates.csv", index=False)
 
+    pd.DataFrame([
+        {
+                "class_name" : class_name,
+                **row,
+        }
+        for class_name, row in (evaluation["gaps"]["female_minus_male"] or {}).items()
+    ]).to_csv(output_dir / "female_minus_male_gaps.csv", index=False)
 
 
     names = [row["name"] for row in evaluation["class_labels"]]
@@ -171,6 +178,95 @@ def save_evaluation(evaluation, output_dir, *, label_names=None, metadata=None):
     fig.tight_layout()
     fig.savefig(output_dir / "confusion_matrices.png", dpi=160, bbox_inches="tight")
     plt.close(fig)
+
+
+    return metrics_path
+
+
+
+def _json_values(value):
+    """Convert nested NumPy values and undefined numbers without changing input."""
+    if isinstance(value, dict):
+        return {key: _json_values(item) for key, item in value.items()}
+    if isinstance(value, np.ndarray):
+        return _json_values(value.tolist())
+    if isinstance(value, (list, tuple)):
+        return [_json_values(item) for item in value]
+    if isinstance(value, np.generic):
+        return _json_values(value.item())
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    return value
+
+
+def save_counterfactual_eval(evaluation, output_dir, *, metadata=None):
+    """Save counterfactual groups as JSON and a flat summary CSV.
+
+    Matrices remain in JSON with their axis labels. Empty-group rates are null.
+    Existing files with these names are overwritten. Returns the JSON path.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+
+    matrix_keys = {"prediction_swap_matrix", "gender_label_swap_matrix"}
+    # Build serializable copies before writing any files.
+    groups = _json_values(evaluation)
+    report = {"groups": groups, "metadata": _json_values(metadata or {})}
+    encoded = json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
+    metrics_path = output_dir / "counterfactual_metrics.json"
+    metrics_path.write_text(encoded, encoding="utf-8")
+
+    summary = pd.DataFrame([
+        {"group": group, **{
+            key: value for key, value in values.items() if key not in matrix_keys
+        }}
+        for group, values in groups.items()
+    ])
+    summary.to_csv(
+            output_dir / "counterfactual_summary.csv", index=False, encoding="utf-8"
+    )
+
+    matrix_dir = output_dir / "matrix"
+    matrix_dir.mkdir(parents=True, exist_ok=True)
+
+    #prediction_swap_matrix
+    for group_name in ("all", "male_to_female", "female_to_male"):
+        matrix = evaluation[group_name]["prediction_swap_matrix"]
+
+        class_ids = matrix["class_ids"]
+        label_names = matrix["label_names"]
+        names = [label_names[class_id] for class_id in class_ids]
+
+        frame = pd.DataFrame(
+            matrix["transition_matrix"]["counts"],
+            index=names,
+            columns=names,
+        )
+
+        frame.index.name = "original_prediction"
+        frame.columns.name = "swapped_prediction"    
+        frame.to_csv(matrix_dir/ f"prediction_swap__{group_name}.csv")
+
+    #gender_label_swap
+    matrix = evaluation["all"]["gender_label_swap_matrix"]
+
+    class_ids = matrix["class_ids"]
+    label_names = matrix["label_names"]
+    names = [label_names[class_id] for class_id in class_ids]
+
+    frame = pd.DataFrame(
+        matrix["transition_matrix"]["counts"],
+        index=names,
+        columns=names,
+    )
+
+    frame.index.name = "original_label"
+    frame.columns.name = "swapped_label"    
+    frame.to_csv(matrix_dir/ f"gender_label_swap.csv")
+
+
+
 
 
     return metrics_path
