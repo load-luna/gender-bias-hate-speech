@@ -1,5 +1,5 @@
 training:
-  learning_rate: 2.0e-5
+  learning_rate: 1.0e-5
   batch_size: 16
   epochs: 8
   weight_decay: 0.01
@@ -8,5 +8,8 @@ training:
   metric_for_best_model: "f1_macro"
   greater_is_better: True
   load_best_model_at_end: True
-  
+  early_stopping:
+    enabled: true
+    patience: 2
+    threshold: 0.0
 

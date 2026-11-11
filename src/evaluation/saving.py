@@ -68,7 +68,7 @@ def save_predictions(predictions,output_path, *, label_names=None, metadata=None
 
 def save_counterfactual_predictions(original, swapped, path, *, label_names=None, metadata=None):
     """Validate pairs and save original/swapped scores side by side."""
-    before, after = original, swapped #make_predictions_frame(original), make_predictions_frame(swapped)
+    before, after = make_predictions_frame(original), make_predictions_frame(swapped)
     for column in ("id", "label"):
         if not np.array_equal(before[column], after[column]):
             print(ValueError(f"Original and swapped {column} do not align."))
@@ -79,7 +79,7 @@ def save_counterfactual_predictions(original, swapped, path, *, label_names=None
     frame = before.merge(after, on="id", how="inner", suffixes=("_original", "_swapped"), validate="one_to_one", sort=False)
     frame["prediction_flipped"] = frame["prediction_original"] != frame["prediction_swapped"]
     frame["gender_flipped"] = frame["gender_label_original"] != frame["gender_label_swapped"]
-    
+
     for column in before.columns:
         if column.startswith("probability_"):
             frame[f"delta_{column}"] = frame[f"{column}_swapped"] - frame[f"{column}_original"]
