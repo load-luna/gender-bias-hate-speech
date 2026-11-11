@@ -1,9 +1,9 @@
 from __future__ import annotations
 from pathlib import Path
 
-
+from datasets import DatasetDict
 import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, data
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 import numpy as np
 from transformers import Trainer, TrainingArguments
@@ -84,12 +84,19 @@ def load_fine_tuned_model(model_path: str, label_names: dict[int, str]):
 def load_fine_tuned_model(
     model_path: str | Path,
     label_names: dict[int, str],
+    lora_enabled: bool = True,
 ):
-    """Load a base model with its trained LoRA adapter for inference."""
-    adapter_path = str(model_path)
+    """Load a saved full model or LoRA adapter for inference."""
+    model_path = str(model_path)
 
+    # Full fine-tuning: load the saved model directly.
+    if not lora_enabled:
+        model = load_model(model_path, label_names)
+        model.eval()
+        return model
+    
     # 1. Read the adapter configuration
-    saved_config = PeftConfig.from_pretrained(adapter_path)
+    saved_config = PeftConfig.from_pretrained(model_path)
     base_model_path = saved_config.base_model_name_or_path
 
     if not base_model_path:
@@ -102,11 +109,11 @@ def load_fine_tuned_model(
         model_path=base_model_path,
         label_names=label_names,
     )
-
+    
     # 3. Load the trained adapter onto the base model
     lora_model = PeftModel.from_pretrained(
         base_model,
-        adapter_path,
+        model_path,
         is_trainable=False,
     )
 
@@ -148,7 +155,7 @@ def check_max_sequence_length(tokenizer,tokenized_dataset):
             t = tokenized_dataset[set_name][i]['input_ids']
 
             if len(t) > max_length:
-                print(f"Sample {i} in {set_name} exceeds max length: {len(t)} > {max_length}")
+                #print(f"Sample {i} in {set_name} exceeds max length: {len(t)} > {max_length}")
                 count += 1
 
     return count
@@ -156,27 +163,37 @@ def check_max_sequence_length(tokenizer,tokenized_dataset):
 
 
 
-def tokenize_dataset(dataset, tokenizer,truncation = False):
+def tokenize_dataset(dataset, tokenizer,truncation = False, max_length=512):
     """Tokenize the dataset using the provided tokenizer."""
 
 
 
     def preprocess_function(examples):
-        return tokenizer(examples["text"], truncation=truncation, padding="max_length", max_length=512)
+        return tokenizer(examples["text"], truncation=truncation, padding="max_length", max_length=max_length)
 
     tokenized_datasets = dataset.map(preprocess_function, batched=True)
 
     # Remove samples that exceed the maximum sequence length
-
     def filter_long_sequences(example):
-        if len(example['input_ids']) > 512:
+        if len(example['input_ids']) > max_length:
             #print(f"Length of input_ids: {len(example['input_ids'])}")
             #print(f"text: {example['text']}")
             return False
         return True
 
-    tokenized_datasets = tokenized_datasets.filter(filter_long_sequences)
 
+    def count_rows(data):
+        if isinstance(data, DatasetDict):
+            return sum(len(split) for split in data.values())
+        return len(data)
+
+    before = count_rows(tokenized_datasets)
+
+    tokenized_datasets = tokenized_datasets.filter(filter_long_sequences)
+    
+    
+    removed = before - count_rows(tokenized_datasets)
+    print(f"Removed {removed} examples.")
 
     return tokenized_datasets
 
@@ -333,3 +350,42 @@ def compute_metrics(eval_pred):
     return metrics
 
 
+#temporary Weighted Loss Function
+def create_weighted_loss_function(config,tokenized_dataset):
+    import torch
+    import torch.nn.functional as F
+
+    # Nur Labels aus dem Trainingsset verwenden
+    train_labels = torch.tensor(
+        tokenized_dataset["train"]["label"],
+        dtype=torch.long,
+    )
+
+    num_classes = config["dataset"]["label_mapping"]["num_labels"]
+    counts = torch.bincount(train_labels, minlength=num_classes)
+
+    if (counts == 0).any():
+        raise ValueError("Im Trainingsset fehlt mindestens eine Klasse.")
+
+    class_weights = counts.sum() / (num_classes * counts.float())
+    print(class_weights)
+
+
+    def weighted_loss(outputs, labels, num_items_in_batch=None):
+        logits = outputs.logits.float()
+        weights = class_weights.to(logits.device)
+
+        loss_sum = F.cross_entropy(
+            logits,
+            labels,
+            weight=weights,
+            reduction="sum",
+        )
+
+        denominator = (
+            num_items_in_batch
+            if num_items_in_batch is not None
+            else labels.numel()
+        )
+
+        return loss_sum / denominator

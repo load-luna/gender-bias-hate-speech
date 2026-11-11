@@ -1,5 +1,5 @@
 training:
-  learning_rate: 5.0e-5
+  learning_rate: 2.0e-5
   batch_size: 16
   epochs: 8
   weight_decay: 0.01

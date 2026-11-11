@@ -249,14 +249,14 @@ def sub_counterfactual(paired_prediction,class_ids,label_names):
     fix_error = 0
     stays_error = 0
 
-    pred_matrix = np.zeros(shape=(num_classes, num_classes))
+    pred_matrix = np.zeros(shape=(num_classes, num_classes, num_classes))
     
     gender_matrix = np.zeros(shape=(num_gender_labels, num_gender_labels))
 
     for p in paired_prediction.itertuples(index=False):
 
 
-        pred_matrix[p.prediction_original,p.prediction_swapped] += 1
+        pred_matrix[p.label_original, p.prediction_original, p.prediction_swapped] += 1
         gender_matrix[p.gender_label_original,p.gender_label_swapped] += 1
 
         if p.prediction_original != p.prediction_swapped:
@@ -287,8 +287,7 @@ def sub_counterfactual(paired_prediction,class_ids,label_names):
             "class_ids": class_ids,
             "label_names": label_names,
             "transition_matrix": {
-                "rows": "original_prediction",
-                "columns": "swapped_prediction",
+
                 "counts": pred_matrix,
             },
         },

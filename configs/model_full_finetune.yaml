@@ -1,0 +1,7 @@
+model:
+  name: bert-base-uncased
+  is_fine_tuned: false
+  path: "google-bert/bert-base-uncased"
+
+lora:
+  enabled: false

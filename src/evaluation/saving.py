@@ -68,16 +68,18 @@ def save_predictions(predictions,output_path, *, label_names=None, metadata=None
 
 def save_counterfactual_predictions(original, swapped, path, *, label_names=None, metadata=None):
     """Validate pairs and save original/swapped scores side by side."""
-    before, after = make_predictions_frame(original), make_predictions_frame(swapped)
+    before, after = original, swapped #make_predictions_frame(original), make_predictions_frame(swapped)
     for column in ("id", "label"):
         if not np.array_equal(before[column], after[column]):
-            raise ValueError(f"Original and swapped {column} do not align.")
+            print(ValueError(f"Original and swapped {column} do not align."))
+            ## will be inner merged
     if before["id"].duplicated().any() or after["id"].duplicated().any():
         raise ValueError("id must be unique.")
 
-    frame = before.merge(after, on="id", suffixes=("_original", "_swapped"), validate="one_to_one", sort=False)
+    frame = before.merge(after, on="id", how="inner", suffixes=("_original", "_swapped"), validate="one_to_one", sort=False)
     frame["prediction_flipped"] = frame["prediction_original"] != frame["prediction_swapped"]
     frame["gender_flipped"] = frame["gender_label_original"] != frame["gender_label_swapped"]
+    
     for column in before.columns:
         if column.startswith("probability_"):
             frame[f"delta_{column}"] = frame[f"{column}_swapped"] - frame[f"{column}_original"]
@@ -238,15 +240,16 @@ def save_counterfactual_eval(evaluation, output_dir, *, metadata=None):
         label_names = matrix["label_names"]
         names = [label_names[class_id] for class_id in class_ids]
 
-        frame = pd.DataFrame(
-            matrix["transition_matrix"]["counts"],
-            index=names,
-            columns=names,
-        )
+        for i in class_ids:
+            frame = pd.DataFrame(
+                matrix["transition_matrix"]["counts"][i],
+                index=names,
+                columns=names,
+            )
 
-        frame.index.name = "original_prediction"
-        frame.columns.name = "swapped_prediction"    
-        frame.to_csv(matrix_dir/ f"prediction_swap__{group_name}.csv")
+            frame.index.name = "original_prediction"
+            frame.columns.name = "swapped_prediction"    
+            frame.to_csv(matrix_dir/ f"prediction_swap__{group_name}__{label_names[i]}.csv")
 
     #gender_label_swap
     matrix = evaluation["all"]["gender_label_swap_matrix"]
