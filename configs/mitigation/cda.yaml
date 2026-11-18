@@ -1,0 +1,7 @@
+mitigation:
+  cda:
+    enabled: true
+    target_gender:
+    - 0
+    - 1
+    exclude_grammar_uncertain: true

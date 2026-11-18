@@ -1,8 +1,7 @@
 evaluation:
   batch_size: 32
-  metrics:
-    - accuracy
-    - f1
-    - tpr_gap
-    - equalized_odds
+  # false: only validation, useful during hyperparameter selection.
+  run_test: true
   counterfactual_testing: true
+  # eval_prediction currently computes all implemented group metrics.
+  # There is no configurable metric filter.

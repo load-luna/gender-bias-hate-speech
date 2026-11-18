@@ -13,3 +13,14 @@ training:
     patience: 2
     threshold: 0.0
 
+
+  # Explicit runtime defaults; enable fp16/bf16 only on suitable hardware.
+  fp16: false
+  bf16: false
+  gradient_accumulation_steps: 1
+  save_total_limit: 2
+
+# Use the same tokenization for all compared experiments, including CLP.
+tokenization:
+  max_length: 512
+  truncation: true

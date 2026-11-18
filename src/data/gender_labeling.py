@@ -3,238 +3,149 @@ import string
 import re
 
 #create Gender Term DataFrame
+# Format: (male, female)
+gender_pairs = [
+    # Pronomen mit eindeutiger Zuordnung
+    ("he", "she"),
+    ("himself", "herself"),
+
+    # Anreden und Personenbezeichnungen
+    ("mr", "ms"),
+    ("man", "woman"),
+    ("men", "women"),
+    ("male", "female"),
+    ("males", "females"),
+    ("boy", "girl"),
+    ("boys", "girls"),
+    ("gentleman", "lady"),
+    ("gentlemen", "ladies"),
+    ("lad", "lass"),
+    ("dude", "babe"),
+    ("sir", "madam"),
+    ("guy", "gal"),
+    ("guys", "gals"),
+
+    # Familie und Beziehungen
+    ("father", "mother"),
+    ("fathers", "mothers"),
+    ("dad", "mom"),
+    ("dads", "moms"),
+    ("daddy", "mommy"),
+    ("daddies", "mommies"),
+    ("son", "daughter"),
+    ("sons", "daughters"),
+    ("brother", "sister"),
+    ("brothers", "sisters"),
+    ("uncle", "aunt"),
+    ("uncles", "aunts"),
+    ("grandfather", "grandmother"),
+    ("grandfathers", "grandmothers"),
+    ("grandpa", "grandma"),
+    ("grandpas", "grandmas"),
+    ("husband", "wife"),
+    ("husbands", "wives"),
+    ("boyfriend", "girlfriend"),
+    ("boyfriends", "girlfriends"),
+    ("nephew", "niece"),
+    ("stepfather", "stepmother"),
+    ("stepfathers", "stepmothers"),
+    ("stepdad", "stepmom"),
+    ("stepdads", "stepmoms"),
+    ("stepbrother", "stepsister"),
+    ("stepbrothers", "stepsisters"),
+    ("halfbrother", "halfsister"),
+    ("halfbrothers", "halfsisters"),
+
+    # Titel
+    ("king", "queen"),
+    ("kings", "queens"),
+    ("prince", "princess"),
+    ("princes", "princesses"),
+
+    # Berufe und Rollen
+    ("actor", "actress"),
+    ("actors", "actresses"),
+    ("waiter", "waitress"),
+    ("waiters", "waitresses"),
+    ("host", "hostess"),
+    ("hosts", "hostesses"),
+    ("businessman", "businesswoman"),
+    ("businessmen", "businesswomen"),
+    ("chairman", "chairwoman"),
+    ("chairmen", "chairwomen"),
+    ("policeman", "policewoman"),
+    ("policemen", "policewomen"),
+    ("fireman", "firewoman"),
+    ("firemen", "firewomen"),
+    ("salesman", "saleswoman"),
+    ("salesmen", "saleswomen"),
+    ("spokesman", "spokeswoman"),
+    ("spokesmen", "spokeswomen"),
+    ("congressman", "congresswoman"),
+    ("congressmen", "congresswomen"),
+    ("statesman", "stateswoman"),
+    ("statesmen", "stateswomen"),
+    ("patriarch", "matriarch"),
+
+    # Eigenschaften
+    ("masculine", "feminine"),
+    ("manly", "womanly"),
+    ("boyish", "girly"),
+    ("fatherly", "motherly"),
+    ("paternal", "maternal"),
+    ("gentlemanly", "ladylike"),
+]
+
+
+
+
+
+# Kollidieren mit bereits verwendeten Gegenstücken:
+# maam → sir        (sir ist bereits mit madam gepaart)
+
+
+# Wörter mit Genderbezug die nicht eindeutig getauscht werdenen / haben beleidigenden beigeschmack
+#bitch
+#pussy
+#cunts
+#hoes
+#diva 
+
+#lexicon of gender term labeling
 gender_lexicon = {
-    "male": {
-       
-            "he", "him", "his", "himself",
-            
-            "father","fathers", "dad","dads", "daddy","daddies", "son","sons", "brother","brothers", "uncle","uncles",
-               
-            "grandfather","grandfathers", "grandpa","grandpas", "husband","husbands", "boyfriend","boyfriends",
-            "nephew", "stepfather", "stepdad", "halfbrother",
-       
-            "man", "men", "male","males", "boy", "boys", "gentleman", "gentlemen",
-            "guy", "guys", "dude", "king", "prince", "sir",
-            "actor", "waiter", "host", "businessman", "chairman",
-            "policeman", "fireman", "salesman", "spokesman",
-            "congressman", "statesman",
-       
-            "masculine", "manly", "virile", "macho", "fatherly",
-            "boyish", "lad", "patriarch",
-                 "gentlemanly","mr"
-    },
-
-    "female": {
-            "she", "her", "hers", "herself",
-                "babe",
-            "mother","mothers", "mom","moms", "mommy","mommies", "daughter","daughters", "sister","sisters", "aunt","aunts",
-            "grandmother","grandmothers", "grandma","grandmas", "wife","wives", "girlfriend","girlfriends",
-            "niece", "stepmother", "stepmom", "halfsister",
-
-            "woman", "women", "female","females", "girl", "girls", "lady", "ladies",
-            "queen", "princess", "madam", "maam", "actress",
-            "waitress", "hostess", "businesswoman", "chairwoman",
-            "policewoman", "saleswoman", "spokeswoman",
-            "congresswoman","firewoman",
-            "lass", "ms", "madam",
-            "ladylike",
-        
-
-            "feminine", "womanly", "girly", "ladylike",
-            "maternal", "motherly", "matriarch", "diva"
-        
-    },
-
-    "neutral": {
-  
-            "they", "them", "their", "theirs", "themselves",
-
-            "parent", "parents", "child", "children", "kid", "kids",
-            "sibling", "siblings", "spouse", "partner",
-            "guardian", "relative",
-
-            "person", "people", "individual", "human", "adult", "teen",
-            "worker", "employee", "staff", "member", "leader",
-            "manager", "chairperson", "police officer",
-            "firefighter", "salesperson", "representative",
-            "official", "citizen",
-
-            "neutral", "androgynous", "nonbinary", "genderless",
-            "inclusive"
-        
-    }
+    "male": {male for male, female in gender_pairs},
+    "female": {female for male, female in gender_pairs},
 }
 
 
-# Define a mapping for swapping gender-specific words
-swap_dict = {
-    # Male to female swaps
-    'he': 'she',
-    'him': 'her', 
-    'his': 'her', 
-    'himself': 'herself',
-    "dude": "babe",
-    "lad":"lass",
-    #"mister": "miss", 
-    "gentlemanly":"ladylike",
-    "mr": "ms",
-    'man': 'woman', 
-    'men': 'women', 
-    'male': 'female',
-    'males': 'females',
-    'boy': 'girl', 
-    'boys': 'girls',
-    'guy': 'girl', 
-    'guys': 'girls', 
-    'father': 'mother',
-    'fathers': 'mothers', 
-    'dad': 'mom',
-    'dads': 'moms',
-    "daddy": "mommy",
-    "daddies": "mommies",
-    'son': 'daughter',
-    'sons': 'daughters', 
-    'brother': 'sister', 
-    'brothers': 'sisters', 
-    'uncle': 'aunt',
-    'uncles': 'aunts',
-    'grandfather': 'grandmother',
-    'grandfathers': 'grandmothers',  
-    'grandpa': 'grandma', 
-    'grandpas': 'grandmas',
-    'husband': 'wife',
-    'husbands': 'wives',
-    'boyfriend': 'girlfriend', 
-    'boyfriends': 'girlfriends', 
-    'nephew': 'niece', 
-    'stepfather': 'stepmother',
-    'stepfathers': 'stepmothers',
-    'stepdad': 'stepmom', 
-    'stepdads': 'stepmoms', 
-    "stepbrother": "stepsister",
-    "stepbrothers": "stepsisters",
-    'halfbrother': 'halfsister', 
-    'halfbrothers': 'halfsisters', 
-    'gentleman': 'lady',
-    'gentlemen': 'ladies',
-    'king': 'queen', 
-    'kings': 'queens',
-    'prince': 'princess', 
-    'princes': 'princesses', 
-    'sir': 'madam', 
-    'actor': 'actress',
-    'actors': 'actresses',
-    'waiter': 'waitress', 
-    'waiters': 'waitresses', 
-    'host': 'hostess', 
-    'hosts': 'hostesses', 
-    'businessman': 'businesswoman',
-    'businessmen': 'businesswomen',
-    'chairman': 'chairwoman', 
-    'chairmen': 'chairwomen', 
-    'policeman': 'policewoman', 
-    'policemen': 'policewomen', 
-    'fireman': 'firewoman',
-    'firemen': 'firewomen',
-    'salesman': 'saleswoman', 
-    'salesmen': 'saleswomen', 
-    'spokesman': 'spokeswoman', 
-    'spokesmen': 'spokeswomen', 
-    'congressman': 'congresswoman',
-    'congressmen': 'congresswomen',
-    'statesman': 'stateswoman', 
-    'statesmen': 'stateswomen', 
-    'masculine': 'feminine', 
-    'manly': 'womanly',
-    'virile': 'feminine', 
-    'macho': 'feminine', 
-    'boyish': 'girly', 
-    'patriarch': 'matriarch',
+
+#swap Dictionary for gender swapping
+swap_dict = {}
+for male, female in gender_pairs:
+    if male == female or male in swap_dict or female in swap_dict:
+        raise ValueError(f"Keine eindeutige Zuordnung: {male}, {female}")
+
+    swap_dict[male] = female
+    swap_dict[female] = male
 
 
-    # Female to male swaps
-    'she': 'he', 
-    'her': 'him', 
-    'hers': 'his', 
-    'herself': 'himself',
-    "lass": "lad",
-    #"miss": "mister",
-    "diva": "drama king",
-    "ladylike": "gentlemanly",
-    "ms": "mr",
-    "babe": "dude",
-    'woman': 'man', 
-    'women': 'men', 
-    'female': 'male',
-    'females': 'males',
-    'girl': 'boy', 
-    'girls': 'boys',
-    'mother': 'father',
-    'mothers': 'fathers',
-    'mom': 'dad',
-    'moms':'dads',
-    "mommy": "daddy",
-    "mommies": "daddies",
-    'daughter': 'son',
-    'daughters': 'sons',
-    'sister': 'brother', 
-    'sisters': 'brothers',
-    'aunt': 'uncle',
-    'aunts':'uncles',
-    'grandmother':'grandfather',
-    'grandmothers':'grandfathers', 
-    'grandma': 'grandpa', 
-    'grandmas':'grandpas',
-    'wife': 'husband',
-    'wives': 'husbands',
-    'girlfriend':'boyfriend',
-    'girlfriends': 'boyfriends', 
-    'niece': 'nephew',
-    "stepsister": "stepbrother",
-    "stepsisters": "stepbrothers",
-    'stepmother': 'stepfather',
-    'stepmothers':'stepfathers',
-    'stepmom': 'stepdad',
-    'stepmoms': 'stepdads',
-    'halfsister': 'halfbrother',
-    'halfsisters': 'halfbrothers', 
-    'lady': 'gentleman', 
-    'ladies': 'gentlemen', 
-    'queen': 'king',
-    'queens': 'kings', 
-    'princess': 'prince',
-    'princesses': 'princes', 
-    'madam': 'sir', 
-    'maam': 'sir', 
-    'actress': 'actor', 
-    'actresses': 'actors', 
-    'waitress': 'waiter',
-    'waitresses': 'waiters',
-    'hostess': 'host', 
-    'hostesses': 'hosts', 
-    'businesswoman': 'businessman', 
-    'businesswomen': 'businessmen',
-    'chairwoman': 'chairman',
-    'chairwomen': 'chairmen',
-    'policewoman': 'policeman', 
-    'policewomen': 'policemen', 
-    'firewoman': 'fireman',
-    'firewomen': 'firemen',
-    'saleswoman': 'salesman', 
-    'saleswomen': 'salesmen',
-    'spokeswoman': 'spokesman',
-    'spokeswomen': 'spokesmen',
-    'stateswoman': 'statesman', 
-    'stateswomen': 'statesmen', 
-    'congresswoman': 'congressman', 
-    'congresswomen': 'congressmen',
-    'feminine': 'masculine', 
-    'womanly': 'manly',
-    'girly': 'boyish', 
-    'maternal': 'paternal', 
-    'motherly': 'fatherly', 
-    'matriarch': 'patriarch'
-}
+
+# Benötigen eine grammatische Unterscheidung:
+# him ↔ her     (Objekt)
+# his ↔ her     (besitzanzeigend vor einem Nomen)
+# his ↔ hers    (selbstständiges Possessivpronomen)
+swap_dict.update({
+    "him": "her",
+    "her": "him",   # Unsicher: possessives "her" müsste zu "his" werden
+    "his": "her",   # Unsicher: selbstständiges "his" müsste zu "hers" werden
+    "hers": "his",
+})
+
+gender_lexicon["male"].update({"him", "his"})
+gender_lexicon["female"].update({"her", "hers"})
+
+grammar_uncertain_terms = {"her", "his"}
+
 gender_labels = {
     0: "male",
     1: "female",
@@ -242,30 +153,21 @@ gender_labels = {
     3: "none",
 }
 
-
-
+def get_grammar_uncertain_terms(text):
+    return sorted(set(get_words(text)) & grammar_uncertain_terms)
 
 def get_word_matches(text):
-    """Return cleaned text and word matches with positions in that text.
-
-    Remove URLs and ASCII @usernames. Underscores and punctuation separate
-    words; digits remain part of words, so 'he2' is not recognized as 'he'.
-    Preserve case and the remaining punctuation/spacing for replacements.
-    """
-    cleaned = re.sub(r"(?:https?://|www\.)\S+", " ", text, flags=re.IGNORECASE)
-    cleaned = re.sub(r"(?<!\w)@[a-z0-9_]+", " ", cleaned, flags=re.IGNORECASE)
-    cleaned = cleaned.strip()
-    return cleaned, list(re.finditer(r"[^\W_]+", cleaned))
+    return text, list(re.finditer(r"[^\W_]+", text))
 
 
 def get_words(text):
     """Return lowercase words using the shared word recognition rules."""
-    _, matches = get_word_matches(text)
+    _,matches = get_word_matches(text)
     return [match.group(0).lower() for match in matches]
 
 
 def swap_gender(sentence):
-    cleaned, matches = get_word_matches(sentence)
+    sentence, matches = get_word_matches(sentence)
     parts = []
     previous_end = 0
     for match in matches:
@@ -278,10 +180,10 @@ def swap_gender(sentence):
         elif word.istitle():
             replacement = replacement.capitalize()
         # Copy everything between words, including punctuation and underscores.
-        parts.append(cleaned[previous_end:match.start()])
+        parts.append(sentence[previous_end:match.start()])
         parts.append(replacement)
         previous_end = match.end()
-    parts.append(cleaned[previous_end:])
+    parts.append(sentence[previous_end:])
     return "".join(parts)
 
 
@@ -308,93 +210,6 @@ def label_gender(text):
     else:
         raise ValueError("Unexpected case in label_gender function")
 
-#outdated
-#needs Dataframe with column ["text"]
-def gender_distribution(df):
-    male_counts = 0
-    female_counts = 0
-    none_counts = 0
-    equal_counts = 0
-    label_avg = 0
-
-
-    #found = False
-    for index, row in df.iterrows():
-        text = row["text"]
-        #removing punctuation and making lowercase
-        text = text.translate(str.maketrans('', '', string.punctuation)).lower()
-        swap_text = swap_gender(text)
-
-        label = label_gender(text)
-        swap_label = label_gender(swap_text)
-        if label == 0:
-            male_counts += 1
-            
-            if swap_label != 1:# and found == False:
-                print("Mismatch in swap label for text:", text)
-                print("swaped Text:", swap_text)
-                #found = True
-        elif label == 1:
-            female_counts += 1
-            if swap_label != 0:
-                print("Mismatch in swap label for text:", text)
-                print("swaped Text:", swap_text)
-        elif label == 2:
-            equal_counts += 1
-            if swap_label != 2:
-                print("Mismatch in swap label for text:", text)
-                print("swaped Text:", swap_text)
-        else:
-            if swap_label != 3:
-                print("Mismatch in swap label for text:", text)
-                print("swaped Text:", swap_text)
-            none_counts += 1
-            
-
-    #bitch
-    #pussy
-    #fiancé 
-    #cunts
-    #hoes
-    avarage_male = male_counts*100 / len(df)
-    avarage_female = female_counts*100 / len(df)
-    avarage_none = none_counts*100 / len(df)
-    avarage_equal = equal_counts*100 / len(df)
-
-    print(f"ratio of tweets with male terms: {avarage_male}")
-    print(f"ratio of tweets with female terms: {avarage_female}")
-    print(f"ratio of tweets with equal gender label: {avarage_equal}")
-    print(f"ratio of tweets with no gender terms: {avarage_none}")
-
-    return {
-            "Male" : avarage_male,
-            "Female" : avarage_female,
-            "Equal" : avarage_equal,
-            "None" : avarage_none,
-           }
-
-#old
-#count_label_distribution(df.to_dict(orient='records'))
-def old_count_label_distribution(dataset):
-    gender_types = 4
-    predict_types = 2
-    arr = [[0 for i in range(predict_types)] for j in range(gender_types)]
-    
-    for f in dataset:
-        label = f['label']
-        gender = f['gender_label']
-        
-        arr[gender][label] += 1
-    #for i in range(gender_types):
-       # for j in range(predict_types):
-       #     arr[i][j] /= len(dataset)
-       #     arr[i][j] *= 100
-    print("male:", arr[0])
-    print("female:", arr[1])
-    print("equal:", arr[2])
-    print("none:", arr[3])
-
-    return arr
 
 def count_label_distribution(dataset,config):
 
@@ -425,11 +240,17 @@ def count_label_distribution(dataset,config):
     return counts
 
 #adds gender label columne to dataset
-def add_gender_label(example):
-    example["gender_label"] = label_gender(example["text"])
+def add_gender_label(example,*,output_column_name="gender_label", input_column_name="text"):
+    example[output_column_name] = label_gender(example[input_column_name])
     return example
 
-def swap_gender_terms_dataset(example):
-    swapped = swap_gender(example["text"])
-    example["text"] = swapped
+def swap_gender_terms_dataset(example,*, column_name="text"):
+    original_text = example[column_name]
+    uncertain_terms = get_grammar_uncertain_terms(original_text)
+
+    example["swap_grammar_uncertain"] = bool(uncertain_terms)
+    example["swap_grammar_uncertain_terms"] = uncertain_terms
+
+    swapped = swap_gender(example[column_name])
+    example[column_name] = swapped
     return example

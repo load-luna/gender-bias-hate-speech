@@ -1,0 +1,7 @@
+mitigation:
+  resampling:
+    enabled: true
+    strategy: mean
+    target_gender:
+    - 0
+    - 1

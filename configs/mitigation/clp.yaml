@@ -1,0 +1,8 @@
+mitigation:
+  clp:
+    enabled: true
+    clp_lambda: 0.1
+    target_gender:
+    - 0
+    - 1
+    exclude_grammar_uncertain: true

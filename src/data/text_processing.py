@@ -56,6 +56,15 @@ def deep_clean_tweet(example):
     #removing all punctiuation
     #text = text.translate(str.maketrans('', '', string.punctuation))
 
+    text = re.sub(
+        r"""\bwww\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"""
+        r"""(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"""
+        r"""(?:[/?#][^\s<>"']*)?""",
+        " ",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     # Step 4: Final cleanup of whitespace and newlines
 
     text = ' '.join(text.split())

@@ -219,9 +219,12 @@ def save_counterfactual_eval(evaluation, output_dir, *, metadata=None):
     metrics_path = output_dir / "counterfactual_metrics.json"
     metrics_path.write_text(encoded, encoding="utf-8")
 
+
+    excluded_keys = {"prediction_swap_matrix", "gender_label_swap_matrix", "fairness_metrics"}
+    #summary table of groups and metrics, excluding matrices and fairness metrics
     summary = pd.DataFrame([
         {"group": group, **{
-            key: value for key, value in values.items() if key not in matrix_keys
+            key: value for key, value in values.items() if key not in matrix_keys and key not in excluded_keys
         }}
         for group, values in groups.items()
     ])
@@ -229,11 +232,39 @@ def save_counterfactual_eval(evaluation, output_dir, *, metadata=None):
             output_dir / "counterfactual_summary.csv", index=False, encoding="utf-8"
     )
 
+    #fairness
+    #building a flat table of fairness metrics for each group and class
+    rows = []
+
+    for group, values in groups.items():
+        for class_id, metrics in values["fairness_metrics"].items():
+            row = {
+                "group": group,
+                "class_id": class_id,
+            }
+
+            for metric_name, result in metrics.items():
+                ci = result["confidence_interval"]
+
+                row[f"{metric_name}_estimate"] = result["estimate"]
+                row[f"{metric_name}_ci_low"] = ci[0]
+                row[f"{metric_name}_ci_high"] = ci[1]
+
+            rows.append(row)
+
+    fairness_metrics = pd.DataFrame(rows)
+
+    fairness_metrics.to_csv(
+        output_dir / "counterfactual_fairness_metrics.csv",
+        index=False,
+        encoding="utf-8",
+    )
+
     matrix_dir = output_dir / "matrix"
     matrix_dir.mkdir(parents=True, exist_ok=True)
 
     #prediction_swap_matrix
-    for group_name in ("all", "male_to_female", "female_to_male"):
+    for group_name in ("all", "male_to_female", "female_to_male", "all_with_gender_terms"):
         matrix = evaluation[group_name]["prediction_swap_matrix"]
 
         class_ids = matrix["class_ids"]

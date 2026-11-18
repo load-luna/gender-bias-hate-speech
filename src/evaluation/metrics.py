@@ -8,6 +8,8 @@ from sklearn.metrics import (
 
 )
 
+from src.evaluation.fairness import compute_paired_bootstrap_confidence_interval, ctf_gap, mean_change
+
 def _ratio(numerator, denominator):
     return float(numerator / denominator) if denominator else None
 
@@ -237,6 +239,27 @@ def eval_prediction(results, class_ids, label_names, gender_labels):
         },
     }
 
+def compute_counterfactual_score_metrics(paired_predictions, class_ids):
+    results = {}
+
+    for class_id in class_ids:
+        results[class_id] = {
+            "mean_change": compute_paired_bootstrap_confidence_interval(
+                paired_predictions,
+                label_id=class_id,
+                statistic_func=mean_change,
+            ),
+            "ctf_gap": compute_paired_bootstrap_confidence_interval(
+                paired_predictions,
+                label_id=class_id,
+                statistic_func=ctf_gap,
+            ),
+        }
+
+    return results
+
+
+
 def sub_counterfactual(paired_prediction,class_ids,label_names):
     evaluation = {}
     num_classes = len(class_ids)
@@ -273,6 +296,10 @@ def sub_counterfactual(paired_prediction,class_ids,label_names):
     p_rate = _ratio(prediction_flip , n_samples)
     g_rate = _ratio(gender_label_flip , n_samples)
 
+    score_metrics = compute_counterfactual_score_metrics(
+        paired_prediction,
+        class_ids,
+    )
 
     return {
         "n_samples" : n_samples,
@@ -300,6 +327,7 @@ def sub_counterfactual(paired_prediction,class_ids,label_names):
                 "counts": gender_matrix,
             },
         },
+        "fairness_metrics": score_metrics,
     }
 
 
@@ -307,7 +335,8 @@ def sub_counterfactual(paired_prediction,class_ids,label_names):
 def eval_counterfactual(paired_prediction,class_ids,label_names):
 
     evaluation = {}
-    
+
+    mask_all_with_gender_terms = (paired_prediction["gender_label_original"] != 3)
 
     mask_male_to_female = (
         (paired_prediction["gender_label_original"] == 0)
@@ -326,6 +355,8 @@ def eval_counterfactual(paired_prediction,class_ids,label_names):
 
     mask_other = ~(mask_male_to_female|mask_female_to_male|mask_equal_to_equal)
 
+
+    all_with_gender_terms = paired_prediction[mask_all_with_gender_terms]
     male_to_female = paired_prediction[mask_male_to_female]
     female_to_male = paired_prediction[mask_female_to_male]
     equal_to_equal = paired_prediction[mask_equal_to_equal]
@@ -335,6 +366,7 @@ def eval_counterfactual(paired_prediction,class_ids,label_names):
 
 
     evaluation["all"] = sub_counterfactual(paired_prediction,class_ids,label_names)
+    evaluation["all_with_gender_terms"] = sub_counterfactual(all_with_gender_terms,class_ids,label_names)
     evaluation["male_to_female"] = sub_counterfactual(male_to_female,class_ids,label_names)
     evaluation["female_to_male"] = sub_counterfactual(female_to_male,class_ids,label_names)
     evaluation["equal_to_equal"] = sub_counterfactual(equal_to_equal,class_ids,label_names)
