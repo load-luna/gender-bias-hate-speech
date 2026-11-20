@@ -1,7 +1,6 @@
 evaluation:
   batch_size: 32
-  # false: only validation, useful during hyperparameter selection.
   run_test: true
   counterfactual_testing: true
-  # eval_prediction currently computes all implemented group metrics.
-  # There is no configurable metric filter.
+  validation_fairness: false
+  checkpoint_fairness: false
