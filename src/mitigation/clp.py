@@ -41,8 +41,12 @@ def prepare_clp_dataset(dataset, tokenizer, *, max_length=512,
         uncertain = bool(get_grammar_uncertain_terms(text)) if eligible else False
         excluded = eligible and uncertain and exclude_grammar_uncertain
         swapped = swap_gender(text) if eligible and not excluded else text
-        original_tokens = tokenizer(text, truncation=True, max_length=max_length)
-        swap_tokens = tokenizer(swapped, truncation=True, max_length=max_length)
+        # Match tokenize_dataset's original input shape, including at lambda=0.
+        # Different padding changes training dropout RNG consumption.
+        original_tokens = tokenizer(text, truncation=True, padding="max_length",
+                                    max_length=max_length)
+        swap_tokens = tokenizer(swapped, truncation=True, padding="max_length",
+                                max_length=max_length)
         valid = eligible and not excluded and (
             original_tokens["input_ids"] != swap_tokens["input_ids"]
         )

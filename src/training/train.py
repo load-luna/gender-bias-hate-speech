@@ -56,7 +56,7 @@ def create_trainer(
     compute_loss_func = None,
 ) -> Trainer:
     """Create a standard Hugging Face Trainer."""
-    return Trainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
@@ -65,6 +65,10 @@ def create_trainer(
         compute_metrics=compute_metrics,
         compute_loss_func=compute_loss_func,
     )
+    if compute_loss_func is None:
+        # BERT sequence classification returns a batch-mean CE and ignores num_items_in_batch
+        trainer.model_accepts_loss_kwargs = False
+    return trainer
 
 
 def set_deterministic_seed(seed: int = 42) -> None:
@@ -86,9 +90,13 @@ def create_experiment_trainer(model, tokenizer, training_args, train_dataset,
     if clp["enabled"]:
         training_args.remove_unused_columns = False
         trainer = CLPTrainer(
-            model=model, args=training_args, processing_class=tokenizer,
-            data_collator=CLPDataCollator(tokenizer), train_dataset=train_dataset,
-            eval_dataset=eval_dataset, compute_metrics=compute_metrics,
+            model=model, 
+            args=training_args, 
+            processing_class=tokenizer,
+            data_collator=CLPDataCollator(tokenizer), 
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset, 
+            compute_metrics=compute_metrics,
             clp_lambda=clp["clp_lambda"],
         )
     else:
