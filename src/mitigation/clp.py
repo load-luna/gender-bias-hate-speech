@@ -153,8 +153,10 @@ class CLPTrainer(Trainer):
         logits = outputs.logits
         if logits.shape[-1] != 2:
             raise ValueError("CLPTrainer requires a binary two-logit classifier")
-        if logits.shape != labels.shape:
-            raise ValueError(f"logits: {logits.shape} must be equal to labels:{labels.shape}. Input: {input}")
+        if logits.ndim != 2 or labels.ndim != 1 or logits.size(0) != labels.size(0):
+            raise ValueError(
+                f"Inkompatible Shapes: logits={logits.shape}, labels={labels.shape}"
+            )
         loss = F.cross_entropy(logits.float(), labels.long())
 
         if (
