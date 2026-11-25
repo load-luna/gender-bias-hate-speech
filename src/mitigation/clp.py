@@ -153,6 +153,8 @@ class CLPTrainer(Trainer):
         logits = outputs.logits
         if logits.shape[-1] != 2:
             raise ValueError("CLPTrainer requires a binary two-logit classifier")
+        if logits.shape != labels.shape
+            raise ValueError(f"logits: {logits.shape} must be equal to labels:{labels.shape}. Input: {input}")
         loss = F.cross_entropy(logits.float(), labels.long())
 
         if (
@@ -160,7 +162,8 @@ class CLPTrainer(Trainer):
             and (self.clp_lambda > 0 or self.compute_pairing_at_zero)
             and indices is not None 
             and indices.numel()
-        ):
+        ):  
+            
             swapped_inputs = {k[4:]: inputs.pop(k) for k in list(inputs)
                                       if k.startswith("clp_")}
             swapped_logits = model(**swapped_inputs).logits
