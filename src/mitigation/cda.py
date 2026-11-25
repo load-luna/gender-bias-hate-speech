@@ -1,6 +1,10 @@
 import pandas as pd
 
-from src.data.gender_labeling import swap_gender_terms_dataset,add_gender_label
+from src.data.gender_labeling import (
+    add_gender_label,
+    contains_gender_pair_term,
+    swap_gender_terms_dataset,
+)
 
 
 
@@ -9,26 +13,31 @@ def selective_cda(
     target_gender=(0, 1),
     exclude_grammar_uncertain=True,
     seed=42,
+    exclude_gender_term_pairs=(),
 ):
+    held_out = train_dataset["text"].map(
+        lambda text: contains_gender_pair_term(text, exclude_gender_term_pairs)
+    ) if exclude_gender_term_pairs else pd.Series(False, index=train_dataset.index)
     report = {
         "method": "selective_cda",
         "seed": seed,
         "target_gender": list(target_gender),
         "exclude_grammar_uncertain": exclude_grammar_uncertain,
         "n_before": len(train_dataset),
+        "n_held_out_unchanged": int(held_out.sum()),
         "groups": [],
     }
     train_dataset = train_dataset.copy()
     train_dataset["id"] = train_dataset["id"].astype("string")
     
-    selected = train_dataset[
-        train_dataset["gender_label"].isin(target_gender)
-    ].copy()
+    selected_by_gender = train_dataset["gender_label"].isin(target_gender)
+    selected = train_dataset[selected_by_gender & ~held_out].copy()
 
     
 
     #swap Gender Terms in Texts
     report["n_selected"] = len(selected)
+    report["n_excluded_held_out_from_cda"] = int((selected_by_gender & held_out).sum())
     swapped_dataset = selected.copy()
     if not selected.empty:
         swapped_dataset = selected.apply(swap_gender_terms_dataset,axis=1)

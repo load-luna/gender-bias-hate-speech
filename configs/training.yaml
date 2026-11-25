@@ -24,4 +24,4 @@ training:
 # Use the same tokenization for all compared experiments, including CLP.
 tokenization:
   max_length: 512
-  truncation: true
+  overlength_policy: filter_pairs

@@ -5,16 +5,28 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import torch
 from datasets import Dataset
 
 from src.config import ExperimentConfig, prepare_run
 from src.data.dataset import load_data_from_config, prepare_dataset
 from src.data.text_processing import deep_clean_tweet
-from src.data.gender_labeling import add_gender_label, swap_gender_terms_dataset, gender_labels
+from src.data.gender_labeling import (
+    add_gender_label,
+    gender_labels,
+    gender_pair_side_presence,
+    swap_gender_for_pairs,
+    swap_gender_terms_dataset,
+)
 from src.data.splits import load_or_create_splits
+from src.data.tokenization import (
+    filter_pair_length_eligible,
+    resolve_tokenization_options,
+    tokenize_dataset,
+)
 from src.mitigation.apply import resolve_mitigation_config, apply_mitigations
-from src.training.model import load_tokenizer, load_model, load_fine_tuned_model, prepare_lora, tokenize_dataset, compute_metrics
+from src.training.model import load_tokenizer, load_model, load_fine_tuned_model, prepare_lora, compute_metrics
 from src.training.train import create_training_arguments, create_experiment_trainer, create_trainer, set_deterministic_seed
 from src.training.predict import predict_dataset
 from src.evaluation.metrics import eval_prediction
@@ -31,16 +43,23 @@ def resolve_run_config(config):
     data = config.to_dict() if isinstance(config, ExperimentConfig) else deepcopy(config)
     data["mitigation"] = resolve_mitigation_config(data)
     tokens = data.setdefault("tokenization", {})
-    if set(tokens) - {"max_length", "truncation"}:
-        raise ValueError("tokenization supports max_length and truncation")
+    if "truncation" in tokens:
+        if "overlength_policy" in tokens:
+            raise ValueError("Use tokenization.overlength_policy; do not also set truncation")
+        legacy_truncation = tokens.pop("truncation")
+        if type(legacy_truncation) is not bool:
+            raise ValueError("Legacy tokenization.truncation must be boolean")
+        tokens["overlength_policy"] = (
+            "truncate" if legacy_truncation else "filter_pairs"
+        )
+    if set(tokens) - {"max_length", "overlength_policy"}:
+        raise ValueError("tokenization supports max_length and overlength_policy")
     tokens.setdefault("max_length", 512)
-    tokens.setdefault("truncation", True)
+    tokens.setdefault("overlength_policy", "filter_pairs")
     if type(tokens["max_length"]) is not int or tokens["max_length"] <= 0:
         raise ValueError("max_length must be a positive integer")
-    if type(tokens["truncation"]) is not bool:
-        raise ValueError("truncation must be boolean")
-    if data["mitigation"]["clp"]["enabled"] and not tokens["truncation"]:
-        raise ValueError("CLP requires truncation=true; use the same setting for comparisons")
+    if tokens["overlength_policy"] not in {"filter_pairs", "truncate"}:
+        raise ValueError("overlength_policy must be 'filter_pairs' or 'truncate'")
     if data["model"].get("is_fine_tuned", False):
         raise ValueError("run_experiment trains fresh models. Use the analysis notebook for saved models.")
     training = data["training"]
@@ -57,8 +76,7 @@ def resolve_run_config(config):
         if (training.get("early_stopping", {}).get("enabled", False)
                 or training["load_best_model_at_end"] or training["save_total_limit"] is not None):
             raise ValueError("Checkpoint search requires early stopping off, load_best_model_at_end=false and save_total_limit=null")
-        if evaluation["run_test"] or not evaluation["counterfactual_testing"] or not tokens["truncation"]:
-            raise ValueError("Checkpoint search requires run_test=false, counterfactual_testing=true and truncation=true")
+
     if training.get("early_stopping", {}).get("enabled", False) and not training["load_best_model_at_end"]:
         raise ValueError("Early stopping requires load_best_model_at_end=true in this runner")
     return ExperimentConfig(data=data, sources=list(config.sources) if isinstance(config, ExperimentConfig) else [])
@@ -66,7 +84,7 @@ def resolve_run_config(config):
 
 def _evaluate(trainer, dataset, config, run_dir, label_names):
     """Save original and optional swapped predictions using the same tokenization."""
-    options = config["tokenization"]
+    options = resolve_tokenization_options(config["tokenization"])
     tokenized = tokenize_dataset(dataset, trainer.processing_class, **options)
     original = predict_dataset(tokenized, trainer)
     save_predictions(original, run_dir / "predictions.csv", label_names=label_names)
@@ -76,6 +94,77 @@ def _evaluate(trainer, dataset, config, run_dir, label_names):
         save_evaluation(result, directory)
         return result
     evaluation = evaluate(original, run_dir / "normal")
+    holdout = config["mitigation"].get("held_out_gender_terms", {})
+    if holdout.get("enabled", False):
+        for pair in holdout["pairs"]:
+            male_term, female_term = pair
+            selected = dataset.filter(
+                lambda row: (
+                    gender_pair_side_presence(row["text"], pair)[0]
+                    != gender_pair_side_presence(row["text"], pair)[1]
+                ),
+                desc=f"Select held-out pair {male_term}/{female_term}",
+            )
+            if not len(selected):
+                raise ValueError(f"No evaluation examples contain exactly one side of {pair}.")
+            source_sides = [
+                gender_pair_side_presence(text, pair)[0]
+                for text in selected["text"]
+            ]
+            swapped = selected.map(
+                lambda row: {
+                    **row,
+                    "text": swap_gender_for_pairs(row["text"], [pair]),
+                },
+                desc=f"Swap held-out pair {male_term}/{female_term}",
+            ).map(add_gender_label)
+            pair_tokens = tokenize_dataset(selected, trainer.processing_class, **options)
+            swapped_tokens = tokenize_dataset(swapped, trainer.processing_class, **options)
+            pair_original = predict_dataset(pair_tokens, trainer)
+            pair_swapped = predict_dataset(swapped_tokens, trainer)
+            pair_dir = run_dir / "held_out_gender_terms" / f"{male_term}__{female_term}"
+            save_predictions(pair_original, pair_dir / "original_predictions.csv",
+                             label_names=label_names,
+                             metadata={"held_out_pair": pair, "source_side_only": True})
+            save_predictions(pair_swapped, pair_dir / "swapped_predictions.csv",
+                             label_names=label_names,
+                             metadata={"held_out_pair": pair, "swap_scope": "selected pair only"})
+            paired_path = save_counterfactual_predictions(
+                pair_original, pair_swapped, pair_dir / "paired_predictions.csv",
+                label_names=label_names,
+                metadata={"held_out_pair": pair, "source_side_only": True},
+            )
+            delta = pair_swapped["probabilities"][:, 1] - pair_original["probabilities"][:, 1]
+            labels = np.asarray(pair_original["label"])
+            flips = np.asarray(pair_original["prediction"]) != np.asarray(pair_swapped["prediction"])
+
+            def pair_summary(mask):
+                if not mask.any():
+                    return {"n": 0, "mean_change": None, "ctf_gap": None, "flip_rate": None}
+                return {
+                    "n": int(mask.sum()),
+                    "mean_change": float(delta[mask].mean()),
+                    "ctf_gap": float(np.abs(delta[mask]).mean()),
+                    "flip_rate": float(flips[mask].mean()),
+                }
+
+            source_sides = np.asarray(source_sides, dtype=bool)
+            summary = {
+                "held_out_pair": pair,
+                "n_pairs": len(selected),
+                "probability_class_id": 1,
+                "overall": pair_summary(np.ones(len(selected), dtype=bool)),
+                "by_source_term": {
+                    male_term: pair_summary(source_sides),
+                    female_term: pair_summary(~source_sides),
+                },
+                "by_label": {
+                    str(class_id): pair_summary(labels == class_id)
+                    for class_id in sorted(set(labels.tolist()))
+                },
+                "paired_predictions": paired_path.name,
+            }
+            _save_json(pair_dir / "metrics.json", summary)
     if config["evaluation"]["counterfactual_testing"]:
         swapped = dataset.map(swap_gender_terms_dataset).map(add_gender_label)
         # Keep swap eligibility metadata for subsequent counterfactual analysis.
@@ -102,7 +191,10 @@ def evaluate_checkpoints(config, run_dir, validation_dataset, tokenizer, names):
                          key=lambda p: int(p.name.split("-")[-1]))
     if not checkpoints:
         raise ValueError("No checkpoints available for fairness selection")
-    tokenized = tokenize_dataset(validation_dataset, tokenizer, **config["tokenization"])
+    tokenized = tokenize_dataset(
+        validation_dataset, tokenizer,
+        **resolve_tokenization_options(config["tokenization"]),
+    )
     rows = []
     for checkpoint in checkpoints:
         state = json.loads((checkpoint / "trainer_state.json").read_text())
@@ -158,31 +250,60 @@ def run_experiment(config, experiment_name, results_root="results"):
         dataset = prepare_dataset(raw, config)
         dataset = dataset.map(deep_clean_tweet)
 
-        #
+        #add gender_label
         n_before = len(dataset)
         dataset = dataset.filter(lambda row: bool(row["text"].strip())).map(add_gender_label)
 
         #split data
         splits = load_or_create_splits(dataset, config, run_dir, copy_assignments=True)
 
-        #tokenize
         tokenizer = load_tokenizer(config["model"]["path"])
+        tokenization_options = resolve_tokenization_options(config["tokenization"])
+        length_policy = config["tokenization"]["overlength_policy"]
 
-        #apply preprocessing mitigation
-        train, reports = apply_mitigations(splits["train"], config.to_dict(), tokenizer)
+        if length_policy == "filter_pairs":
+            splits, length_report = filter_pair_length_eligible(
+                splits,
+                tokenizer,
+                max_length=config["tokenization"]["max_length"],
+            )
+        else:
+            n_rows = sum(len(split) for split in splits.values())
+            length_report = {
+                "method": "truncate",
+                "max_length": config["tokenization"]["max_length"],
+                "n_before": n_rows,
+                "n_after": n_rows,
+                "n_removed": 0,
+            }
+        _save_json(run_dir / "length_handling_report.json", length_report)
+
+        # Apply text-level mitigation first. Tokenize every resulting training
+        # example, including CLP swaps, in one shared stage afterward.
+        train_raw, reports = apply_mitigations(splits["train"], config.to_dict())
+
+        # Save row lineage before token arrays are added.
+        lineage = [c for c in ("id", "source_id", "root_id", "label", "gender_label",
+                               "clp_pair_candidate") if c in train_raw.column_names]
+        train_raw.select_columns(lineage).to_csv(str(run_dir / "training_rows.csv"), index=False)
+        train = tokenize_dataset(train_raw, tokenizer, **tokenization_options)
+        for report in reports:
+            if report.get("stage") == "clp":
+                report["max_length"] = config["tokenization"]["max_length"]
+                report["truncation"] = tokenization_options["truncation"]
+                report["n_pairs"] = int(sum(train["clp_valid"]))
+                report["n_identical_tokens"] = report["n_pair_candidates"] - report["n_pairs"]
         _save_json(run_dir / "mitigation_report.json", reports)
 
-        #data report
-        # Save lineage without large token arrays.
-        lineage = [c for c in ("id", "source_id", "root_id", "label", "gender_label", "clp_valid")
-                   if c in train.column_names]
-        train.select_columns(lineage).to_csv(str(run_dir / "training_rows.csv"), index=False)
-        validation = tokenize_dataset(splits["validation"], tokenizer, **config["tokenization"])
+        validation = tokenize_dataset(
+            splits["validation"], tokenizer, **tokenization_options
+        )
         if not len(train) or not len(validation):
             raise ValueError("Tokenization left an empty training or validation split")
         _save_json(run_dir / "data_report.json", {
             "n_empty_removed": n_before - len(dataset),
             "split_sizes": {k: len(v) for k, v in splits.items()},
+            "length_handling": length_report,
             "n_train_after_preparation": len(train), "n_validation_after_tokenization": len(validation),
         })
 

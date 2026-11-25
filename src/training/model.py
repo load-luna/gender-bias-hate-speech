@@ -1,7 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
 
-from datasets import DatasetDict
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, data
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
@@ -14,6 +13,7 @@ from peft import (
     TaskType,
     PeftConfig,
 )
+from src.training.predict import softmax
 
 
 def load_tokenizer(model_path: str):
@@ -60,27 +60,7 @@ def prepare_lora(model, config):
     model = get_peft_model(model, lora_config)
     return model
 
-"""""
-def load_fine_tuned_model(model_path: str, label_names: dict[int, str]):
-    #Load a fine-tuned sequence classification model.
-    saved_config = PeftConfig.from_pretrained(model_path)
-    model_path = saved_config.base_model_name_or_path
-    if not model_path:
-        raise ValueError("In adapter_config.json fehlt base_model_name_or_path.")
 
-
-    return load_model(model_path, label_names)
-
-
- def load_fine_tuned_model(model_name: str, num_labels: int, model_path: str):
-    #Load a fine-tuned model from a specified path.
-    lora_model = PeftModel.from_pretrained(
-        model, best_model_path, is_trainable=False,
-    )
-    lora_model.eval()
-    print("Gespeichertes LoRA-Modell geladen:", best_model_path)
-    return model
-"""""
 def load_fine_tuned_model(
     model_path: str | Path,
     label_names: dict[int, str],
@@ -141,145 +121,6 @@ def count_parameters(model):
 
 
     return param_counts
-
-
-#needs to be 0!
-def check_max_sequence_length(tokenizer,tokenized_dataset):
-    """Check the maximum sequence length for a given tokenizer."""
-    max_length = tokenizer.model_max_length
-
-
-    count = 0
-    for set_name in ['train', 'test', 'validation']:
-        for i in range(len(tokenized_dataset[set_name])):
-            t = tokenized_dataset[set_name][i]['input_ids']
-
-            if len(t) > max_length:
-                #print(f"Sample {i} in {set_name} exceeds max length: {len(t)} > {max_length}")
-                count += 1
-
-    return count
-
-
-
-
-def tokenize_dataset(dataset, tokenizer,truncation = False, max_length=512):
-    """Tokenize the dataset using the provided tokenizer."""
-
-
-
-    def preprocess_function(examples):
-        return tokenizer(examples["text"], truncation=truncation, padding="max_length", max_length=max_length)
-
-    tokenized_datasets = dataset.map(preprocess_function, batched=True)
-
-    # Remove samples that exceed the maximum sequence length
-    def filter_long_sequences(example):
-        if len(example['input_ids']) > max_length:
-            #print(f"Length of input_ids: {len(example['input_ids'])}")
-            #print(f"text: {example['text']}")
-            return False
-        return True
-
-
-    def count_rows(data):
-        if isinstance(data, DatasetDict):
-            return sum(len(split) for split in data.values())
-        return len(data)
-
-    before = count_rows(tokenized_datasets)
-
-    tokenized_datasets = tokenized_datasets.filter(filter_long_sequences)
-    
-    
-    removed = before - count_rows(tokenized_datasets)
-    print(f"Removed {removed} examples.")
-
-    return tokenized_datasets
-
-"""def compute_metrics_with3(eval_pred):
-    predictions, labels = eval_pred
-
-    # apply softmax (3 classes)
-    exp_preds = np.exp(predictions - np.max(predictions, axis=1, keepdims=True))
-    probabilities = exp_preds / exp_preds.sum(axis=1, keepdims=True)
-
-    # Ensure probabilities are float32 and labels are int32
-    probabilities = probabilities.astype(np.float32)
-    labels = labels.astype(np.int32)
-
-    # MULTI-CLASS ROC AUC (3 classes)
-    auc = np.round(
-        roc_auc_score(
-            y_true=labels,
-            y_score=probabilities,
-            multi_class="ovr"   # or "ovo"??
-        ),
-        3
-    )
-
-    # predicted class
-    predicted_classes = np.argmax(probabilities, axis=1)
-
-    # accuracy
-    acc = np.round(
-        accuracy_score(
-            y_true=labels,
-            y_pred=predicted_classes
-        ),
-        3
-    )
-
-    # f1 score
-    f1 = np.round(
-        f1_score(
-            y_true=labels,
-            y_pred=predicted_classes,
-            average="weighted"
-        ),
-        3
-    )
-
-    return {
-        "accuracy": acc,
-        "roc_auc": auc,
-        "f1_score": f1
-    }
-
-def compute_metrics(eval_pred):
-    probs, labels = eval_pred
-
-   
-
-    # 3. Get predicted class labels (index of highest probability)
-    predictions = np.argmax(probs, axis=1)
-    
-    # 4. Calculate metrics using Scikit-Learn
-    return {
-        "Accuracy": accuracy_score(labels, predictions),
-        "F1 Score": f1_score(labels, predictions)
-    }
-
-
-
-"""
-
-
-"""
-
-def compute_predict(eval_pred):
-    predictions, labels = eval_pred
-    
-    # apply softmax (3 classes)
-    #exp_preds = np.exp(predictions - np.max(predictions, axis=1, keepdims=True))
-    #probabilities = exp_preds / exp_preds.sum(axis=1, keepdims=True)
-
-    pred = np.argmax(predictions, axis=1)
-    return pred
-
-"""
-
-from src.training.predict import softmax
 
 
 def compute_metrics(eval_pred):

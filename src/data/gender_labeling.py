@@ -166,13 +166,40 @@ def get_words(text):
     return [match.group(0).lower() for match in matches]
 
 
-def swap_gender(sentence):
+def normalize_gender_pairs(pairs):
+    """Validate and normalize directed (male_term, female_term) pairs."""
+    normalized = []
+    for pair in pairs or []:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError("Each held-out gender pair must contain two terms.")
+        male, female = (str(term).lower() for term in pair)
+        if not male or not female or swap_dict.get(male) != female or swap_dict.get(female) != male:
+            raise ValueError(f"Terms do not form a reversible gender pair: {pair!r}")
+        if (male, female) not in normalized:
+            normalized.append((male, female))
+    return normalized
+
+
+def contains_gender_pair_term(text, pairs):
+    """Whether text contains any exact token from the configured gender pairs."""
+    terms = {term for pair in normalize_gender_pairs(pairs) for term in pair}
+    return bool(terms.intersection(get_words(text)))
+
+
+def gender_pair_side_presence(text, pair):
+    """Return (male-side-present, female-side-present) for one exact word pair."""
+    male, female = normalize_gender_pairs([pair])[0]
+    words = set(get_words(text))
+    return male in words, female in words
+
+
+def _swap_with_dict(sentence, replacements):
     sentence, matches = get_word_matches(sentence)
     parts = []
     previous_end = 0
     for match in matches:
         word = match.group(0)
-        replacement = swap_dict.get(word.lower())
+        replacement = replacements.get(word.lower())
         if replacement is None:
             replacement = word
         elif word.isupper():
@@ -185,6 +212,19 @@ def swap_gender(sentence):
         previous_end = match.end()
     parts.append(sentence[previous_end:])
     return "".join(parts)
+
+
+def swap_gender(sentence):
+    return _swap_with_dict(sentence, swap_dict)
+
+
+def swap_gender_for_pairs(sentence, pairs):
+    """Swap only the terms in the selected pairs; leave all other terms intact."""
+    replacements = {}
+    for male, female in normalize_gender_pairs(pairs):
+        replacements[male] = female
+        replacements[female] = male
+    return _swap_with_dict(sentence, replacements)
 
 
 def count_gender_terms(text):

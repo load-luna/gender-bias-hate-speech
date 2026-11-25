@@ -1,7 +1,7 @@
 """Independent binary CLP: original cross entropy plus squared logit-margin gap.
 
 Prepare cleaned training data AFTER splitting and optional resampling/CDA. Each row keeps its
-original ID/text/label; swap tokens live in extra columns, not extra examples.
+original ID/text/label; the counterfactual text is stored in an extra column, not as another row.
 Validation and prediction use original cross entropy only. Lambda must be
 selected on validation data. This is a margin-MSE variant, not an exact
 reproduction of the original CLP paper's experimental setup.
@@ -13,65 +13,61 @@ import torch
 from torch.nn import functional as F
 from transformers import DataCollatorWithPadding, Trainer
 
-from src.data.gender_labeling import get_grammar_uncertain_terms, swap_gender
+from src.data.gender_labeling import (
+    contains_gender_pair_term,
+    get_grammar_uncertain_terms,
+    swap_gender,
+)
 
 
-def prepare_clp_dataset(dataset, tokenizer, *, max_length=512,
-                        target_gender=(0, 1), exclude_grammar_uncertain=True,
-                        class_ids=None):
-    """Return tokenized HF Dataset and JSON-compatible preparation report.
+def prepare_clp_pairs(dataset, *, target_gender=(0, 1),
+                      exclude_grammar_uncertain=True, class_ids=None,
+                      exclude_gender_term_pairs=()):
+    """Add CLP swap text and eligibility metadata without tokenizing.
 
-    Both sides use identical truncation. Pairs whose token IDs are identical
-    after truncation are disabled. class_ids=None allows both labels; (0,)
-    restricts pairing to neither without removing other classification rows.
-    Input must contain text, label and gender_label, and be cleaned already.
+    Token IDs for originals and swaps are created later by tokenize_dataset,
+    so training examples share one tokenization stage.
+    class_ids=None allows both labels; (0,) restricts pairing to one class
+    without removing other classification rows.
     """
     required = {"text", "label", "gender_label"}
     if not required.issubset(dataset.column_names):
         raise ValueError(f"Required columns: {sorted(required)}")
-    if max_length <= 0:
-        raise ValueError("max_length must be positive")
     target_gender = tuple(target_gender)
     class_ids = None if class_ids is None else tuple(class_ids)
 
     def prepare(example):
         text = example["text"]
-        eligible = (example["gender_label"] in target_gender and
+        selected = (example["gender_label"] in target_gender and
                     (class_ids is None or example["label"] in class_ids))
+        held_out = selected and contains_gender_pair_term(text, exclude_gender_term_pairs)
+        eligible = selected and not held_out
         uncertain = bool(get_grammar_uncertain_terms(text)) if eligible else False
         excluded = eligible and uncertain and exclude_grammar_uncertain
-        swapped = swap_gender(text) if eligible and not excluded else text
-        # Match tokenize_dataset's original input shape, including at lambda=0.
-        # Different padding changes training dropout RNG consumption.
-        original_tokens = tokenizer(text, truncation=True, padding="max_length",
-                                    max_length=max_length)
-        swap_tokens = tokenizer(swapped, truncation=True, padding="max_length",
-                                max_length=max_length)
-        valid = eligible and not excluded and (
-            original_tokens["input_ids"] != swap_tokens["input_ids"]
-        )
+        pair_candidate = eligible and not excluded
+        swapped = swap_gender(text) if pair_candidate else text
         return {
-            **original_tokens,
-            **{f"clp_{key}": value for key, value in swap_tokens.items()},
-            "clp_valid": bool(valid),
-            "clp_selected": bool(eligible),
+            "clp_text": swapped,
+            "clp_selected": bool(selected),
+            "clp_pair_candidate": bool(pair_candidate),
             "clp_excluded_grammar": bool(excluded),
+            "clp_excluded_held_out": bool(held_out),
         }
 
-    prepared = dataset.map(prepare, desc="Prepare CLP pairs")
+    prepared = dataset.map(prepare, desc="Prepare CLP pair metadata")
     selected = sum(prepared["clp_selected"])
     excluded = sum(prepared["clp_excluded_grammar"])
-    paired = sum(prepared["clp_valid"])
+    held_out_excluded = sum(prepared["clp_excluded_held_out"])
+    candidates = sum(prepared["clp_pair_candidate"])
     report = {
         "method": "clp", "variant": "binary_margin_mse",
         "target_gender": list(target_gender),
         "class_ids": None if class_ids is None else list(class_ids),
         "exclude_grammar_uncertain": exclude_grammar_uncertain,
-        "max_length": max_length, "truncation": True,
         "n_before": len(dataset), "n_after": len(prepared), "n_added": 0,
         "n_selected": int(selected), "n_excluded_grammar_uncertain": int(excluded),
-        "n_pairs": int(paired),
-        "n_identical_tokens": int(selected - excluded - paired),
+        "n_excluded_held_out": int(held_out_excluded),
+        "n_pair_candidates": int(candidates),
     }
     return prepared, report
 
@@ -161,8 +157,7 @@ class CLPTrainer(Trainer):
 
         if (
             model.training 
-            and self.compute_pairing_at_zero
-            and self.clp_lambda > 0 
+            and (self.clp_lambda > 0 or self.compute_pairing_at_zero)
             and indices is not None 
             and indices.numel()
         ):

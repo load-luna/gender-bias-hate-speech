@@ -1,5 +1,6 @@
 import random
 import pandas as pd
+from src.data.gender_labeling import contains_gender_pair_term
 
 #dublicat plus sample the rest
 def over_sample(dataset,sample_length,seed=42):
@@ -51,13 +52,18 @@ def down_sample(dataset,sample_length,seed=42):
 
 
 
-def balance_gender_within_class(train_dataset, class_id, target_gender,strategy= "mean", seed=42):
+def balance_gender_within_class(train_dataset, class_id, target_gender, strategy="mean", seed=42,
+                                exclude_gender_term_pairs=()):
+    excluded = train_dataset["text"].map(
+        lambda text: contains_gender_pair_term(text, exclude_gender_term_pairs)
+    ) if exclude_gender_term_pairs else pd.Series(False, index=train_dataset.index)
     report = {
         "method": "balance_gender_within_class",
         "sampling_strategy" : strategy,
         "seed": seed,
         "target_gender": list(target_gender),
         "n_before": len(train_dataset),
+        "n_held_out_unchanged": int(excluded.sum()),
         "groups": [],
     }   
 
@@ -75,7 +81,7 @@ def balance_gender_within_class(train_dataset, class_id, target_gender,strategy=
             train_dataset["label"] == label
         ]
 
-        selected = class_subset["gender_label"].isin(target_gender)
+        selected = class_subset["gender_label"].isin(target_gender) & ~excluded.loc[class_subset.index]
 
         gender_subset = class_subset[selected]
         rest_subset = class_subset[~selected]
