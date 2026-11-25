@@ -128,7 +128,7 @@ class CLPTrainer(Trainer):
     Standard training dropout remains active on both forward passes.
     """
 
-    def __init__(self, *args, clp_lambda=1.0, **kwargs):
+    def __init__(self, *args, clp_lambda=1.0, compute_pairing_at_zero= False, **kwargs):
         if not math.isfinite(clp_lambda) or clp_lambda < 0:
             raise ValueError("clp_lambda must be finite and nonnegative")
         if kwargs.get("compute_loss_func") is not None:
@@ -144,20 +144,30 @@ class CLPTrainer(Trainer):
         # Trainer handles scaling for gradient accumulation; no item-count kwarg
         # is forwarded to BERT/PEFT, since we compute a mean loss ourselves.
         self.model_accepts_loss_kwargs = False
+        #for loss diognostic
+        self.compute_pairing_at_zero = compute_pairing_at_zero
 
     def compute_loss(self, model, inputs, return_outputs=False,
                      num_items_in_batch=None):
         inputs = dict(inputs)
         labels = inputs.pop("labels")
         indices = inputs.pop("clp_pair_indices", None)
-        swapped_inputs = {k[4:]: inputs.pop(k) for k in list(inputs)
-                          if k.startswith("clp_")}
+        
         outputs = model(**inputs)
         logits = outputs.logits
         if logits.shape[-1] != 2:
             raise ValueError("CLPTrainer requires a binary two-logit classifier")
         loss = F.cross_entropy(logits.float(), labels.long())
-        if model.training and self.clp_lambda > 0 and indices is not None and indices.numel():
+
+        if (
+            model.training 
+            and self.compute_pairing_at_zero
+            and self.clp_lambda > 0 
+            and indices is not None 
+            and indices.numel()
+        ):
+            swapped_inputs = {k[4:]: inputs.pop(k) for k in list(inputs)
+                                      if k.startswith("clp_")}
             swapped_logits = model(**swapped_inputs).logits
             pairing = counterfactual_pairing_loss(logits[indices], swapped_logits)
             loss = loss + self.clp_lambda * pairing

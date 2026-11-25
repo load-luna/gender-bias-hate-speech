@@ -16,13 +16,21 @@ def resolve_mitigation_config(config):
         if legacy in config:
             raise ValueError(f"Legacy key {legacy!r}: use mitigation.resampling/cda/clp")
     result = {
-        "resampling": {"enabled": False, "strategy": "mean", "target_gender": [0, 1],
+        "resampling": {"enabled": False, 
+                       "strategy": "mean", 
+                       "target_gender": [0, 1],
                        "class_id": sorted(int(k) for k in config["dataset"]["label_mapping"]["names"]),
                        "seed": config["training"]["seed"]},
-        "cda": {"enabled": False, "target_gender": [0, 1], "exclude_grammar_uncertain": True,
+        "cda": {"enabled": False, 
+                "target_gender": [0, 1], 
+                "exclude_grammar_uncertain": True,
                 "seed": config["training"]["seed"]},
-        "clp": {"enabled": False, "clp_lambda": 0.1, "target_gender": [0, 1],
-                "exclude_grammar_uncertain": True, "class_ids": None},
+        "clp": {"enabled": False, 
+                "clp_lambda": 0.1, 
+                "target_gender": [0, 1],
+                "exclude_grammar_uncertain": True, 
+                "class_ids": None,
+                "compute_pairing_at_zero": False,},
     }
     supplied = config.get("mitigation", {})
     if not isinstance(supplied, dict) or set(supplied) - set(result):

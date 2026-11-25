@@ -8,6 +8,7 @@ training:
   metric_for_best_model: "f1_macro"
   greater_is_better: True
   load_best_model_at_end: True
+  deteminism: false
   early_stopping:
     enabled: true
     patience: 2

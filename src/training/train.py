@@ -43,6 +43,7 @@ def create_training_arguments(
         bf16=training_config.get("bf16", False),
         gradient_accumulation_steps=training_config.get("gradient_accumulation_steps", 1),
         save_total_limit=training_config.get("save_total_limit"),
+        full_determinism=training_config.get("deteminism", False)
     )
 
 
@@ -98,6 +99,7 @@ def create_experiment_trainer(model, tokenizer, training_args, train_dataset,
             eval_dataset=eval_dataset, 
             compute_metrics=compute_metrics,
             clp_lambda=clp["clp_lambda"],
+            compute_pairing_at_zero = clp["compute_pairing_at_zero"]
         )
     else:
         trainer = create_trainer(model, tokenizer, training_args, train_dataset,
