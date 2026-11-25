@@ -95,6 +95,9 @@ class CLPDataCollator:
                 swaps.append({k: feature[f"clp_{k}"] for k in self.input_names
                               if f"clp_{k}" in feature})
         batch = self.pad(originals)
+        #debug
+        print("collator:", batch["input_ids"].shape, batch["labels"].shape)
+        
         batch["clp_pair_indices"] = torch.tensor(indices, dtype=torch.long)
         if swaps:
             batch.update({f"clp_{k}": v for k, v in self.pad(swaps).items()})
@@ -148,9 +151,12 @@ class CLPTrainer(Trainer):
         inputs = dict(inputs)
         labels = inputs.pop("labels")
         indices = inputs.pop("clp_pair_indices", None)
-        
+        #debug
+        print("loss input:", inputs["input_ids"].shape, labels.shape)
         outputs = model(**inputs)
         logits = outputs.logits
+        #debug
+        print("model output:", logits.shape)
         if logits.shape[-1] != 2:
             raise ValueError("CLPTrainer requires a binary two-logit classifier")
         if logits.ndim != 2 or labels.ndim != 1 or logits.size(0) != labels.size(0):
