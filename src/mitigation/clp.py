@@ -84,21 +84,19 @@ class CLPDataCollator:
         self.pad = DataCollatorWithPadding(tokenizer=tokenizer)
 
     def __call__(self, features):
-        originals, swaps, indices = [], [], []
+        originals, swaps, clp_indices = [], [], []
         for index, feature in enumerate(features):
             original = {k: feature[k] for k in self.input_names if k in feature}
             if "labels" in feature or "label" in feature:
                 original["labels"] = feature.get("labels", feature.get("label"))
             originals.append(original)
             if feature.get("clp_valid", False):
-                indices.append(index)
+                clp_indices.append(index)
                 swaps.append({k: feature[f"clp_{k}"] for k in self.input_names
                               if f"clp_{k}" in feature})
         batch = self.pad(originals)
-        #debug
-        print("collator:", batch["input_ids"].shape, batch["labels"].shape)
         
-        batch["clp_pair_indices"] = torch.tensor(indices, dtype=torch.long)
+        batch["clp_pair_indices"] = torch.tensor(clp_indices, dtype=torch.long)
         if swaps:
             batch.update({f"clp_{k}": v for k, v in self.pad(swaps).items()})
         return batch
@@ -150,26 +148,17 @@ class CLPTrainer(Trainer):
                      num_items_in_batch=None):
         inputs = dict(inputs)
         labels = inputs.pop("labels")
-        indices = inputs.pop("clp_pair_indices", None)
-
-        
+        clp_indices = inputs.pop("clp_pair_indices", None)
 
         swapped_inputs = {
             key.removeprefix("clp_"): inputs.pop(key)
             for key in list(inputs)
             if key.startswith("clp_")
         }
-        #debug
-        print("original input:", inputs["input_ids"].shape)
-        print("labels:", labels.shape)
-        print("swap input:", swapped_inputs.get("input_ids", torch.empty(0)).shape)
-        print("pair indices:", None if indices is None else indices.shape)
-        print("loss input:", inputs["input_ids"].shape, labels.shape)
 
         outputs = model(**inputs)
         logits = outputs.logits
-        #debug
-        print("model output:", logits.shape)
+
         if logits.shape[-1] != 2:
             raise ValueError("CLPTrainer requires a binary two-logit classifier")
         if logits.ndim != 2 or labels.ndim != 1 or logits.size(0) != labels.size(0):
@@ -181,16 +170,14 @@ class CLPTrainer(Trainer):
         if (
             model.training 
             and (self.clp_lambda > 0 or self.compute_pairing_at_zero)
-            and indices is not None 
-            and indices.numel()
+            and clp_indices is not None 
+            and clp_indices.numel()
         ):  
             
             
             swapped_logits = model(**swapped_inputs).logits
-            #debug
-            print("original logits:", logits.shape)
-            print("swapped logits:", swapped_logits.shape)
-            pairing = counterfactual_pairing_loss(logits[indices], swapped_logits)
+
+            pairing = counterfactual_pairing_loss(logits[clp_indices], swapped_logits)
             loss = loss + self.clp_lambda * pairing
         return (loss, outputs) if return_outputs else loss
 
