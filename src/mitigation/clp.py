@@ -17,12 +17,15 @@ from src.data.gender_labeling import (
     contains_gender_pair_term,
     get_grammar_uncertain_terms,
     swap_gender,
+    check_terms_after_exclusion,
+    swap_gender_with_exclude,
 )
 
 
 def prepare_clp_pairs(dataset, *, target_gender=(0, 1),
-                      exclude_grammar_uncertain=True, class_ids=None,
-                      exclude_gender_term_pairs=()):
+                      exclude_grammar_uncertain=True, 
+                      class_ids=None,
+                      held_out_pairs=(),):
     """Add CLP swap text and eligibility metadata without tokenizing.
 
     Token IDs for originals and swaps are created later by tokenize_dataset,
@@ -40,33 +43,45 @@ def prepare_clp_pairs(dataset, *, target_gender=(0, 1),
         text = example["text"]
         selected = (example["gender_label"] in target_gender and
                     (class_ids is None or example["label"] in class_ids))
-        held_out = selected and contains_gender_pair_term(text, exclude_gender_term_pairs)
-        eligible = selected and not held_out
-        uncertain = bool(get_grammar_uncertain_terms(text)) if eligible else False
-        excluded = eligible and uncertain and exclude_grammar_uncertain
-        pair_candidate = eligible and not excluded
-        swapped = swap_gender(text) if pair_candidate else text
+
+        should_swap = check_terms_after_exclusion(
+            example,
+            column_name="text",
+            exclude_grammar_uncertain=exclude_grammar_uncertain,
+            exclude_pairs=held_out_pairs,
+        )
+        held_out = selected and contains_gender_pair_term(text, held_out_pairs)
+
+        uncertain = bool(get_grammar_uncertain_terms(text)) and not exclude_grammar_uncertain
+        excluded = selected and not should_swap
+        pair_candidate = selected and should_swap
+        swapped = swap_gender_with_exclude(text,held_out_pairs) if pair_candidate else text
         return {
             "clp_text": swapped,
             "clp_selected": bool(selected),
             "clp_pair_candidate": bool(pair_candidate),
-            "clp_excluded_grammar": bool(excluded),
-            "clp_excluded_held_out": bool(held_out),
+            "clp_uncertain_grammar": bool(uncertain),
+            "clp_excluded": bool(excluded),
         }
 
     prepared = dataset.map(prepare, desc="Prepare CLP pair metadata")
     selected = sum(prepared["clp_selected"])
-    excluded = sum(prepared["clp_excluded_grammar"])
-    held_out_excluded = sum(prepared["clp_excluded_held_out"])
+    excluded = sum(prepared["clp_excluded"])
+    uncertain_grammar = sum(prepared["clp_uncertain_grammar"])
     candidates = sum(prepared["clp_pair_candidate"])
     report = {
-        "method": "clp", "variant": "binary_margin_mse",
+        "method": "clp", 
+        "variant": "binary_margin_mse",
         "target_gender": list(target_gender),
         "class_ids": None if class_ids is None else list(class_ids),
         "exclude_grammar_uncertain": exclude_grammar_uncertain,
-        "n_before": len(dataset), "n_after": len(prepared), "n_added": 0,
-        "n_selected": int(selected), "n_excluded_grammar_uncertain": int(excluded),
-        "n_excluded_held_out": int(held_out_excluded),
+        "held_out_pairs" : held_out_pairs,
+        "n_before": len(dataset), 
+        "n_after": len(prepared), 
+        "n_added": 0,
+        "n_selected": int(selected), 
+        "n_excluded": int(excluded),
+        "n_uncertain_grammar": int(uncertain_grammar),
         "n_pair_candidates": int(candidates),
     }
     return prepared, report

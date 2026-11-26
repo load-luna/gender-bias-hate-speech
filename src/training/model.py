@@ -23,11 +23,11 @@ def load_tokenizer(model_path: str):
 
 def load_model(
     model_path: str,
-    label_names: dict[int, str],
+    label_dict: dict[int, str],
 ):
     """Load a sequence classification model."""
 
-    id2label = label_names
+    id2label = label_dict
     label2id = {
         label: idx
         for idx, label in id2label.items()
@@ -63,7 +63,7 @@ def prepare_lora(model, config):
 
 def load_fine_tuned_model(
     model_path: str | Path,
-    label_names: dict[int, str],
+    label_dict: dict[int, str],
     lora_enabled: bool = True,
 ):
     """Load a saved full model or LoRA adapter for inference."""
@@ -71,7 +71,7 @@ def load_fine_tuned_model(
 
     # Full fine-tuning: load the saved model directly.
     if not lora_enabled:
-        model = load_model(model_path, label_names)
+        model = load_model(model_path, label_dict)
         model.eval()
         return model
     
@@ -87,7 +87,7 @@ def load_fine_tuned_model(
     # 2. Load the original base model with the correct classification head
     base_model = load_model(
         model_path=base_model_path,
-        label_names=label_names,
+        label_dict=label_dict,
     )
     
     # 3. Load the trained adapter onto the base model

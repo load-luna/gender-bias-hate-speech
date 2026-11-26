@@ -3,7 +3,8 @@ import pandas as pd
 from src.data.gender_labeling import (
     add_gender_label,
     contains_gender_pair_term,
-    swap_gender_terms_dataset,
+    swap_gender_terms_dataset_with_exclusion,
+    check_terms_after_exclusion
 )
 
 
@@ -13,47 +14,50 @@ def selective_cda(
     target_gender=(0, 1),
     exclude_grammar_uncertain=True,
     seed=42,
-    exclude_gender_term_pairs=(),
+    held_out_pairs=(),
 ):
-    held_out = train_dataset["text"].map(
-        lambda text: contains_gender_pair_term(text, exclude_gender_term_pairs)
-    ) if exclude_gender_term_pairs else pd.Series(False, index=train_dataset.index)
     report = {
         "method": "selective_cda",
         "seed": seed,
         "target_gender": list(target_gender),
         "exclude_grammar_uncertain": exclude_grammar_uncertain,
         "n_before": len(train_dataset),
-        "n_held_out_unchanged": int(held_out.sum()),
+        "held_out_pairs": held_out_pairs,
         "groups": [],
     }
     train_dataset = train_dataset.copy()
     train_dataset["id"] = train_dataset["id"].astype("string")
-    
+        
     selected_by_gender = train_dataset["gender_label"].isin(target_gender)
-    selected = train_dataset[selected_by_gender & ~held_out].copy()
+    candidates = train_dataset.loc[selected_by_gender].copy()
 
-    
+    should_swap = candidates.apply(
+        lambda row: check_terms_after_exclusion(
+            row,
+            column_name="text",
+            exclude_grammar_uncertain=exclude_grammar_uncertain,
+            exclude_pairs=held_out_pairs,
+        ),
+        axis=1,
+    )
 
-    #swap Gender Terms in Texts
+    selected = candidates.loc[should_swap].copy()
+
+    report["n_candidates"] = len(candidates)
     report["n_selected"] = len(selected)
-    report["n_excluded_held_out_from_cda"] = int((selected_by_gender & held_out).sum())
-    swapped_dataset = selected.copy()
+    report["excluded"] = len(candidates) - len(selected)
+
+
     if not selected.empty:
-        swapped_dataset = selected.apply(swap_gender_terms_dataset,axis=1)
-
-    #add new Gender Lable - will be replaced!
-        swapped_dataset = swapped_dataset.apply(add_gender_label,axis=1)
-
-    #exclude grammar uncertain
-    report["n_excluded_grammar_uncertain"] = 0
-    if exclude_grammar_uncertain and not swapped_dataset.empty:
-        report["n_excluded_grammar_uncertain"] = int(
-            swapped_dataset["swap_grammar_uncertain"].sum()
+        swapped_dataset = selected.apply(
+            swap_gender_terms_dataset_with_exclusion,
+            axis=1,
+            exclude_grammar_uncertain=exclude_grammar_uncertain,
+            exclude_pairs=held_out_pairs,
         )
-        swapped_dataset = swapped_dataset[
-            ~swapped_dataset["swap_grammar_uncertain"]
-        ].copy()
+        swapped_dataset = swapped_dataset.apply(add_gender_label, axis=1)
+    else:
+        swapped_dataset = selected.iloc[0:0].copy()
 
 
     #id neu setzen & alte id speichern

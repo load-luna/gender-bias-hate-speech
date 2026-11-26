@@ -25,8 +25,8 @@ dataset:
       1: hateful
 
   split:
-    directory: data/processed/splits/3D_combined_v2
-    preprocessing_version: deep_clean_tweet_www_v2
+    directory: data/processed/splits/3D_combined_v3
+    preprocessing_version: deep_clean_tweet_www_v3
     seed: 42
     train_split_size: 0.6
     validation_split_size: 0.1

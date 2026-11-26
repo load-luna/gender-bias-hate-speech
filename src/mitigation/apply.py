@@ -116,7 +116,8 @@ def apply_mitigations(train_dataset, config):
         for name, function in (("resampling", balance_gender_within_class), ("cda", selective_cda)):
             options = dict(settings[name])
             if options.pop("enabled"):
-                options["exclude_gender_term_pairs"] = held_out_pairs
+                if name == "cda":
+                    options["held_out_pairs"] = held_out_pairs
                 frame, report = function(frame, **options)
                 report["stage"] = name
                 reports.append(report)
@@ -126,7 +127,7 @@ def apply_mitigations(train_dataset, config):
         options.pop("enabled")
         weight = options.pop("clp_lambda")
         options.pop("compute_pairing_at_zero", None)
-        options["exclude_gender_term_pairs"] = held_out_pairs
+        options["held_out_pairs"] = held_out_pairs
         train, report = prepare_clp_pairs(train, **options)
         report.update(stage="clp", clp_lambda=weight, pair_scope="all_eligible_rows_after_preprocessing")
         reports.append(report)

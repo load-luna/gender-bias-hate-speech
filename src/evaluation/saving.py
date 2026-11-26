@@ -200,6 +200,10 @@ def _json_values(value):
         return None
     return value
 
+def save_json(path, value):
+    Path(path).write_text(json.dumps(_json_values(value), indent=2, ensure_ascii=False,
+                                    allow_nan=False), encoding="utf-8")
+
 
 def save_counterfactual_eval(evaluation, output_dir, *, metadata=None):
     """Save counterfactual groups as JSON and a flat summary CSV.

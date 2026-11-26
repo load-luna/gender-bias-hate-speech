@@ -4,3 +4,4 @@ evaluation:
   counterfactual_testing: true
   validation_fairness: false
   checkpoint_fairness: false
+  test_pairs : ()

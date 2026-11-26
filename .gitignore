@@ -57,4 +57,8 @@ runs/
 tmp/
 temp/
 
+#thesis
+thesis_outline/
+
+
 src copy

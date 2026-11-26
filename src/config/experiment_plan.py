@@ -65,6 +65,11 @@ def build_experiment_plan(
     for combo in variants:
         mitigation_files = [Path(mitigation_dir) / f"{m}.yaml"
                             for m in (combo or ("baseline",))]
+
+        mitigation_files.append(
+            Path(mitigation_dir) / "held_out_gender_terms.yaml"
+        )
+
         base = ExperimentConfig.from_files(**config_files, mitigations=mitigation_files)
         values = base.to_dict()
         for path, value in overrides.items():
