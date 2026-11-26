@@ -151,8 +151,21 @@ class CLPTrainer(Trainer):
         inputs = dict(inputs)
         labels = inputs.pop("labels")
         indices = inputs.pop("clp_pair_indices", None)
+
+        
+
+        swapped_inputs = {
+            key.removeprefix("clp_"): inputs.pop(key)
+            for key in list(inputs)
+            if key.startswith("clp_")
+        }
         #debug
+        print("original input:", inputs["input_ids"].shape)
+        print("labels:", labels.shape)
+        print("swap input:", swapped_inputs.get("input_ids", torch.empty(0)).shape)
+        print("pair indices:", None if indices is None else indices.shape)
         print("loss input:", inputs["input_ids"].shape, labels.shape)
+
         outputs = model(**inputs)
         logits = outputs.logits
         #debug
@@ -172,9 +185,11 @@ class CLPTrainer(Trainer):
             and indices.numel()
         ):  
             
-            swapped_inputs = {k[4:]: inputs.pop(k) for k in list(inputs)
-                                      if k.startswith("clp_")}
+            
             swapped_logits = model(**swapped_inputs).logits
+            #debug
+            print("original logits:", logits.shape)
+            print("swapped logits:", swapped_logits.shape)
             pairing = counterfactual_pairing_loss(logits[indices], swapped_logits)
             loss = loss + self.clp_lambda * pairing
         return (loss, outputs) if return_outputs else loss
